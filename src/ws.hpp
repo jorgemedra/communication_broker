@@ -25,7 +25,7 @@
 #include <boost/beast.hpp>
 
 // Use (void) to silent unused warnings.
-#define assertm(exp, msg) assert(((void)msg, exp))
+//#define assertm(exp, msg) assert(((void)msg, exp))
 
 namespace jomt
 {
@@ -98,7 +98,7 @@ namespace jomt
         void wait_for_connections();
 
         void initIdQueue(int max_cnxs);
-        std::pair<int, std::shared_ptr<wscnx>> regiter_wscnx(boost::asio::ip::tcp::socket &&socket);
+        std::pair <int, connection_info> regiter_wscnx(boost::asio::ip::tcp::socket &&socket);
         bool unregiter_wscnx(int id);
 
     public:
@@ -107,7 +107,9 @@ namespace jomt
                  boost::asio::ssl::context::method mtd = boost::asio::ssl::context::sslv23_server);
 
         void set_ssl_options(std::string cert_path, std::string key_path, std::string pem_path);
-        
+
+        std::pair<bool, std::shared_ptr<wscnx>> fetch_cnx(int id);
+
         void run();
         void onStart();
         void onStop();
@@ -116,15 +118,14 @@ namespace jomt
         void cnx_closed(int id, const boost::system::error_code &ec);
 
         void write(int id, std::string_view data, bool close_it = false);
-        void write(std::shared_ptr<wscnx>, std::string_view data, bool close_it = false);
 
         virtual void on_server_start() = 0;
         virtual void on_server_stop(const boost::system::error_code &ec) = 0;
 
-        virtual void on_new_connection(int id, std::shared_ptr<wscnx> cnx) = 0;
+        virtual void on_new_connection(int id, connection_info cnxi) = 0;
         virtual void on_connection_end(int id, const boost::system::error_code &ec) = 0;
 
-        virtual void on_data_rx(int id, std::string_view data, std::shared_ptr<wscnx> cnx) = 0;
+        virtual void on_data_rx(int id, std::string_view data, connection_info cnxi) = 0;
     };
 
 

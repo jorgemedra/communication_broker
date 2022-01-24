@@ -21,14 +21,14 @@ using namespace boost::beast::websocket;
 
 using header_type = std::list<stomp_header>;
 
-void stomp_sever::proccess_connect(std::shared_ptr<stomp_message> msg, std::shared_ptr<jomt::wscnx> cnx)
+void stomp_sever::proccess_connect(std::shared_ptr<stomp_message> msg, jomt::connection_info cnxi)
 {
     bool b_error{false};
-    std::vector<std::string> hdrl = fetch_header(msg, cnx,
+    std::vector<std::string> hdrl = fetch_header(msg, cnxi,
                                                {stomp_headers::HDR_SECRET_KEY, 
                                                 stomp_headers::HDR_LOGIN,
                                                 stomp_headers::HDR_PASSCODE},
-                                               b_error, true);
+                                                b_error, true); 
     if (b_error) return;
 
     std::string secret_key = hdrl[0];
@@ -38,8 +38,8 @@ void stomp_sever::proccess_connect(std::shared_ptr<stomp_message> msg, std::shar
     // Valid the Application Secret Key
     if (secret_key.compare(m_secret_keys.sk_application) != 0)
     {
-        std::cout << "[stomp_sever] proccess_connect [" << cnx->cnx_info().id << "] Invalid Application Secret Key.\n";
-        send_error_msg(cnx, "Invalid Application Secret Key.", true);
+        std::cout << "[stomp_sever] proccess_connect [" << cnxi.id << "] Invalid Application Secret Key.\n";
+        send_error_msg(cnxi, "Invalid Application Secret Key.", true);
         return;
     }
 
@@ -48,12 +48,12 @@ void stomp_sever::proccess_connect(std::shared_ptr<stomp_message> msg, std::shar
     std::string proif_desc = stomp_profile_keys::profile_description(profile);
     if (profile == stomp_profile::empty)
     {
-        std::cout << "[stomp_sever] proccess_connect [" << cnx->cnx_info().id << "] Invalid Profile/Passcode.\n";
-        send_error_msg(cnx, "Invalid Profile/Passcode.", true);
+        std::cout << "[stomp_sever] proccess_connect [" << cnxi.id << "] Invalid Profile/Passcode.\n";
+        send_error_msg(cnxi, "Invalid Profile/Passcode.", true);
         return;
     }
 
-    auto [session, ec, pcnx, close_it] = m_session_mng->register_session(cnx->cnx_info(), login_id, profile);
+    auto [session, ec, pcnx, close_it] = m_session_mng->register_session(cnxi, login_id, profile);
     std::cout << "[stomp_sever] " << stomp_session::show_info(session);
 
     //std::cout << "[stomp_sever] EC : " << ec << "CloseIt:" << close_it << "\n " << stomp_session::show_info(session);
@@ -74,27 +74,27 @@ void stomp_sever::proccess_connect(std::shared_ptr<stomp_message> msg, std::shar
         }
 
         std::cout << "[stomp_sever] Session Register result: " << out.str();
-        send_error_msg(pcnx.id, out.str(), close_it);
+        send_error_msg(pcnx, out.str(), close_it);
         if (b_end) return;
     }
 
-    send_connected_msg(cnx, session);
+    send_connected_msg(cnxi, session);
 }
 
-void stomp_sever::proccess_disconnect(std::shared_ptr<stomp_message> msg, std::shared_ptr<jomt::wscnx> cnx)
+void stomp_sever::proccess_disconnect(std::shared_ptr<stomp_message> msg, jomt::connection_info cnxi)
 {
-    std::shared_ptr<stomp_session> session = m_session_mng->fetch_session_by_cnx(cnx->cnx_info().id);
+    std::shared_ptr<stomp_session> session = m_session_mng->fetch_session_by_cnx(cnxi.id);
 
-    std::cout << "stomp_sever::proccess_disconnect: " << cnx->cnx_info();
+    std::cout << "stomp_sever::proccess_disconnect: " << cnxi;
 
     if (session->profile == stomp_profile::empty)
     {
-        send_error_msg(cnx, "This connection has no a logged session.", true);
+        send_error_msg(cnxi, "This connection has no a logged session.", true);
         return;
     }
 
     bool b_error{false};
-    std::vector<std::string> hdrl = fetch_header(msg, cnx,
+    std::vector<std::string> hdrl = fetch_header(msg, cnxi,
                                                  {stomp_headers::HDR_RECEIPT_ID},
                                                  b_error, true);
     if (b_error) return;
@@ -104,16 +104,13 @@ void stomp_sever::proccess_disconnect(std::shared_ptr<stomp_message> msg, std::s
     if (recep_id.compare("")==0)
         recep_id = "-na-";
 
-    //Unsubscribe from another session before disconnect but don't send ACK.
-    //BUG: CRASH
-    //m_subs_mng->async_init_unsubscription(session,session->login_id,false);
-    send_receipt_msg(recep_id, cnx, session, true);
+    send_receipt_msg(recep_id, cnxi, session, true);
 }
 
-void stomp_sever::proccess_send_message(std::shared_ptr<stomp_message> msg, std::shared_ptr<jomt::wscnx> cnx)
+void stomp_sever::proccess_send_message(std::shared_ptr<stomp_message> msg, jomt::connection_info cnxi)
 {
     bool b_error{false};
-    std::vector<std::string> hdrl = fetch_header(msg, cnx,
+    std::vector<std::string> hdrl = fetch_header(msg, cnxi,
                                                  {stomp_headers::HDR_SESSION_ID,
                                                   stomp_headers::HDR_DEST,
                                                   stomp_headers::HDR_CONT_TYPE,
@@ -133,7 +130,7 @@ void stomp_sever::proccess_send_message(std::shared_ptr<stomp_message> msg, std:
 
     if (session->profile == stomp_profile::empty)
     {
-        send_error_msg(cnx, "This connection has no a logged session.", true);
+        send_error_msg(cnxi, "This connection has no a logged session.", true);
         return;
     }
 
@@ -141,33 +138,29 @@ void stomp_sever::proccess_send_message(std::shared_ptr<stomp_message> msg, std:
 
     if (session_dest == m_session_mng->empty_session())
     {
-        bool close_it{false};
-        close_it = false;
         std::stringstream out;
-        out << "The destination[" << dest << "] doesn't exist"
-            << (close_it ? ". This sessión is going to be closed." : ".");
-
-        send_error_msg(cnx, out.str(), close_it);
+        out << "The destination[" << dest << "] doesn't exist.";
+        send_error_msg(cnxi, out.str());
         return;
     }
 
     std::cout << "\nstomp_sever::proccess_send_message:\n"
               << stomp_message::info(*msg);
 
-    int cnx_id = session->cnxs.front().id;
+    //int cnx_id = session->cnxs.front().id;
 
     // for (auto its = session_dest.begin(); its != session_dest.end(); its++)
     //     send_send_msg(msg, trans_id, session, *its);
     send_send_msg(msg, trans_id, session, session_dest);
 
     std::string info{""};
-    send_ack_msg(cnx_id, session, trans_id, stomp_errors::OK, info);
+    send_ack_msg(cnxi, session, trans_id, stomp_errors::OK, info);
 }
 
-void stomp_sever::proccess_subscribe(std::shared_ptr<stomp_message> msg, std::shared_ptr<jomt::wscnx> cnx)
+void stomp_sever::proccess_subscribe(std::shared_ptr<stomp_message> msg, jomt::connection_info cnxi)
 {
     bool b_error{false};
-    std::vector<std::string> hdrl = fetch_header(msg, cnx,
+    std::vector<std::string> hdrl = fetch_header(msg, cnxi,
                                                  {stomp_headers::HDR_SESSION_ID,
                                                   stomp_headers::HDR_DEST_TYPE,
                                                   stomp_headers::HDR_DEST,
@@ -184,7 +177,7 @@ void stomp_sever::proccess_subscribe(std::shared_ptr<stomp_message> msg, std::sh
     auto session = m_session_mng->fetch_session_by_id(session_id);
     if (session->profile == stomp_profile::empty)
     {
-        send_error_msg(cnx, "This connection has no logged a session.", true);
+        send_error_msg(cnxi, "This connection has no logged a session.", true);
         return;
     }
 
@@ -192,10 +185,10 @@ void stomp_sever::proccess_subscribe(std::shared_ptr<stomp_message> msg, std::sh
     m_subs_mng->async_init_subscription(session, dest, trans, is_regex);
 }
 
-void stomp_sever::proccess_unsubscribe(std::shared_ptr<stomp_message> msg, std::shared_ptr<jomt::wscnx> cnx)
+void stomp_sever::proccess_unsubscribe(std::shared_ptr<stomp_message> msg, jomt::connection_info cnxi)
 {
     bool b_error{false};
-    std::vector<std::string> hdrl = fetch_header(msg, cnx,
+    std::vector<std::string> hdrl = fetch_header(msg, cnxi,
                                                  {stomp_headers::HDR_SESSION_ID,
                                                   stomp_headers::HDR_TRANSACTION},
                                                  b_error, true);
@@ -208,7 +201,7 @@ void stomp_sever::proccess_unsubscribe(std::shared_ptr<stomp_message> msg, std::
     auto session = m_session_mng->fetch_session_by_id(session_id);
     if (session->profile == stomp_profile::empty)
     {
-        send_error_msg(cnx, "This connection has no logged a session.", true);
+        send_error_msg(cnxi, "This connection has no logged a session.", true);
         return;
     }
 
@@ -221,7 +214,7 @@ void stomp_sever::on_subscription_task_ends(std::shared_ptr<stomp_subscription_t
 {
     if(task->send_call_back)
     {
-        int cnx_id = task->owner->cnxs.front().id;
-        send_ack_msg(cnx_id, task->owner, task->trans_id, ec, info);
+        auto cnxi = task->owner->cnxs.front();
+        send_ack_msg(cnxi, task->owner, task->trans_id, ec, info);
     }
 }

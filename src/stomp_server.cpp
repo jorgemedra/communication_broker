@@ -46,13 +46,19 @@ void stomp_sever::on_server_stop(const boost::system::error_code &ec)
         std::cout << "[stomp_sever] The server has benn stoped.\n";
 }
 
-void stomp_sever::on_new_connection(int id, std::shared_ptr<jomt::wscnx> cnx)
+void stomp_sever::on_new_connection(int id, jomt::connection_info cnxi)
 {
     std::cout << "[stomp_sever] on_new_connection with id [" << id << "]:\n";
-    cnx->run();
+    if(cnxi.type == jomt::WEBSOCKET)
+    {
+        auto [bexist, cnx] = wsserver::fetch_cnx(cnxi.id);
+        if (bexist)
+            cnx->run();
+    }
+    
 }
 
-void stomp_sever::on_data_rx(int id, std::string_view data, std::shared_ptr<jomt::wscnx> cnx)
+void stomp_sever::on_data_rx(int id, std::string_view data, jomt::connection_info cnxi)
 {
     stomp_errors ec;
     stomp_parser parser;
@@ -66,15 +72,15 @@ void stomp_sever::on_data_rx(int id, std::string_view data, std::shared_ptr<jomt
 
         std::cout << "WARN CNX [" << id << "] INVALID MESSAGE:"
                   << "\n\tError Description: " << err_description(ec)
-                  << "\n\tRemote Source:[" << cnx->cnx_info().address << ":" << cnx->cnx_info().port << "]"
+                  << "\n\tRemote Source:[" << cnxi.address << ":" << cnxi.port << "]"
                   << "\n[---------------------- BEGIN WRONG MESSAGE ----------------------------------]\n"
                   << data
                   << "\n[---------------------- END WRONG MESSAGE ------------------------------------]\n";
-        send_error_msg(cnx, out.str(), true);
+        send_error_msg(cnxi, out.str(), true);
         return;
     }
 
-    proccess_message(msg, cnx);
+    proccess_message(msg, cnxi);
 }
 
 void stomp_sever::on_connection_end(int id, const boost::system::error_code &ec)
@@ -112,9 +118,9 @@ void stomp_sever::on_connection_end(int id, const boost::system::error_code &ec)
 }
 
 std::vector<std::string> stomp_sever::fetch_header(std::shared_ptr<stomp_message> msg,
-                                            std::shared_ptr<jomt::wscnx> cnx,
-                                            std::list<std::string> headers_id,
-                                            bool &b_error, bool close_on_error)
+                                                   jomt::connection_info cnxi,
+                                                   std::list<std::string> headers_id,
+                                                   bool &b_error, bool close_on_error)
 {
     std::vector<std::string> values{};
     b_error = false;
@@ -128,10 +134,10 @@ std::vector<std::string> stomp_sever::fetch_header(std::shared_ptr<stomp_message
             std::stringstream out;
 
             if (close_on_error)
-                out << "BAD MESSAGE. There is no a valid [" << header << "] header. This sessión is going to be closed.";
+                out << "BAD MESSAGE. There is no a valid [" << *ith << "] header. This sessión is going to be closed.";
             else
-                out << "BAD MESSAGE. There is no a valid [" << header << "] header.";
-            send_error_msg(cnx, out.str(), close_on_error);
+                out << "BAD MESSAGE. There is no a valid [" << *ith << "] header.";
+            send_error_msg(cnxi, out.str(), close_on_error);
             b_error = true;
             break;
         }
@@ -141,19 +147,18 @@ std::vector<std::string> stomp_sever::fetch_header(std::shared_ptr<stomp_message
     return values;
 }
 
-
-void stomp_sever::proccess_message(std::shared_ptr<stomp_message> msg, std::shared_ptr<jomt::wscnx> cnx)
+void stomp_sever::proccess_message(std::shared_ptr<stomp_message> msg, jomt::connection_info cnxi)
 {
     if (msg->command.compare(stomp_commands::CMD_CONNECT) == 0)
-        proccess_connect(msg, cnx);
+        proccess_connect(msg, cnxi);
     else if (msg->command.compare(stomp_commands::CMD_DISCONNECT) == 0)
-        proccess_disconnect(msg, cnx);
+        proccess_disconnect(msg, cnxi);
     else if (msg->command.compare(stomp_commands::CMD_SEND) == 0)
-        proccess_send_message(msg, cnx);
+        proccess_send_message(msg, cnxi);
     else if (msg->command.compare(stomp_commands::CMD_SUBSCRIBE) == 0)
-        proccess_subscribe(msg, cnx);
+        proccess_subscribe(msg, cnxi);
     else if (msg->command.compare(stomp_commands::CMD_UNSUBSCRIBE) == 0)
-        proccess_unsubscribe(msg, cnx);
+        proccess_unsubscribe(msg, cnxi);
     else
     {
         // TODO: PRINT WARNINGS AND CLOSE THIS CONNECTION IF THE COMMAND IS NOT RECOGNIZED

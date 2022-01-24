@@ -69,6 +69,16 @@ void wsserver::set_ssl_options(std::string crt_path, std::string key_path, std::
     m_is_ssl= true;
 }
 
+std::pair<bool, std::shared_ptr<wscnx>> wsserver::fetch_cnx(int id)
+{
+    std::unique_lock<std::mutex> lockstck(m_lockcnx);
+
+    auto it = m_cnxs.find(id);
+    if(it == m_cnxs.end())
+        return {false, {}};
+    return {true,it->second};
+}
+
 void wsserver::onStart()
 {
     //std::cout << "[onStart] Runnig WSServer for IPV4 and on port [" << m_port << "]\n";
@@ -129,8 +139,8 @@ void wsserver::wait_for_connections()
                                 }
                                 else
                                 {
-                                    auto [id, ptr_cnx] = self->regiter_wscnx(std::move(socket));
-                                    self->on_new_connection(id, ptr_cnx);
+                                    auto [id, cnxi] = self->regiter_wscnx(std::move(socket));
+                                    self->on_new_connection(id, cnxi);
                                 }
 
                                 self->wait_for_connections();
@@ -147,7 +157,7 @@ void wsserver::cnx_closed(int id, const boost::system::error_code &ec)
     //std::cout << "[cnx_closed] END.\n";
 }
 
-std::pair<int, std::shared_ptr<wscnx>> wsserver::regiter_wscnx(ip::tcp::socket &&socket)
+std::pair<int, connection_info> wsserver::regiter_wscnx(ip::tcp::socket &&socket)
 {
     std::unique_lock<std::mutex> lockstck(m_lockcnx);
 
@@ -159,7 +169,7 @@ std::pair<int, std::shared_ptr<wscnx>> wsserver::regiter_wscnx(ip::tcp::socket &
 
     std::pair<int, std::shared_ptr<wscnx>> data = std::pair<int, std::shared_ptr<wscnx>>(id, cnx);
     m_cnxs.insert(data);
-    return data;
+    return {id, cnx->cnx_info()};
 }
 
 bool wsserver::unregiter_wscnx(int id)
@@ -181,9 +191,4 @@ void wsserver::write(int id, std::string_view data, bool close_it)
     auto it = m_cnxs.find(id);
     if(it != m_cnxs.end())
         it->second->write(data, close_it);
-}
-
-void wsserver::write(std::shared_ptr <wscnx> cnx, std::string_view data, bool close_it)
-{
-    cnx->write(data, close_it);
 }

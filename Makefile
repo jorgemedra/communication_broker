@@ -11,8 +11,6 @@ BIN_DIR = 		./bin
 
 OBJ_FLS = 		$(OBJ_DIR)/main.o \
 				$(OBJ_DIR)/ntwrk_basic.o \
-				$(OBJ_DIR)/tcp.o \
-				$(OBJ_DIR)/http.o \
 				$(OBJ_DIR)/wsserver.o \
 				$(OBJ_DIR)/wscnx.o \
 				$(OBJ_DIR)/stomp_server.o \

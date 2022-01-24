@@ -147,7 +147,7 @@ void wscnx::read_tcp()
                         if(!self->m_server.expired())
                         {
                             std::string_view vdata(data.c_str());
-                            self->m_server.lock()->on_data_rx(self->m_cnx_info.id, vdata, self);
+                            self->m_server.lock()->on_data_rx(self->m_cnx_info.id, vdata, self->cnx_info());
                         }
                         self->read_tcp(); 
                     });//lambda
@@ -181,7 +181,7 @@ void wscnx::read_ssl()
                         if(!self->m_server.expired())
                         {
                             std::string_view vdata(data.c_str());
-                            self->m_server.lock()->on_data_rx(self->m_cnx_info.id, vdata, self);
+                            self->m_server.lock()->on_data_rx(self->m_cnx_info.id, vdata, self->cnx_info());
                         }
                         self->read_ssl(); 
                     });//lambda

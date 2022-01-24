@@ -1,34 +1,34 @@
 
-# C++ JSON/Logs Boost Sample
+# C++ Communication Broker
 
 # TODO List
 
-[x] - Connect Diagram.
-[x] - Disconnect Diagram.
-[x] - Subscribe Diagram.
-[x] - Unsubscribe Diagram.
-[x] - Send Diagram.
-[x] - BUG: It may be a problem on Subscriptions and Unsubscriptions, it necessary to check the whole essenary to add and remove the subscriptons/subscrbes form ALL the sessions linked to an LoginId/Agent.
-[x] - BUG: Subscription has no efect on Client on Service Profile.
-[x] - BUG: Unsubscribe Exception at disconnect: "Assertion failed: (id_ != T::id), function try_lock, file /usr/local/include/boost/beast/websocket/detail/soft_mutex.hpp, line 89"
-[x] - BUG: test with an empty login-id.
-[x] - Upate Close connection, on Disconnect, to close connection.
-[x] - BUG: Remove end lines of body
-[x] - Implement a global trim function 
-[x] - Add session information on Error Message
-[ ] - On Connect, implement KeepAlive to all connections on API.
-[ ] - Add a thread to check all the connections which have been reached the time out.
-[x] - get the destination id to set into the STOMP Client API.
-[x] - Check error Message.
-[x] - Desgine the scheme of Publisher Suscriber and the ids to be used with regex on destiny.
-[x] - Subscribe
-[x] - UnSubscribe
-[x] - Disconnect / Receipt
-[x] - Message
-[x] - Send / ACK
-[x] - ACK FOR SEND
-[ ] - Finish JS API, Left proccess the remain messages.
-[ ] - Implements the TCP Server.
+- [x]  Connect Diagram.
+- [x] Disconnect Diagram.
+- [x] Subscribe Diagram.
+- [x] Unsubscribe Diagram.
+- [x] Send Diagram.
+- [x] BUG: It may be a problem on Subscriptions and Unsubscriptions, it necessary to check the whole essenary to add and remove the subscriptons/subscrbes form ALL the sessions linked to an LoginId/Agent.
+- [x] BUG: Subscription has no efect on Client on Service Profile.
+- [x] BUG: Unsubscribe Exception at disconnect: "Assertion failed: (id_ != T::id), function try_lock, file /usr/local/include/boost/beast/websocket/detail/soft_mutex.hpp, line 89"
+- [x] BUG: test with an empty login-id.
+- [x] Upate Close connection, on Disconnect, to close connection.
+- [x] BUG: Remove end lines of body
+- [x] Implement a global trim function 
+- [x] Add session information on Error Message
+- [ ] On Connect, implement KeepAlive to all connections on API.
+- [ ] Add a thread to check all the connections which have been reached the time out.
+- [x] get the destination id to set into the STOMP Client API.
+- [x] Check error Message.
+- [x] Desgine the scheme of Publisher Suscriber and the ids to be used with regex on destiny.
+- [x] Subscribe
+- [x] UnSubscribe
+- [x] Disconnect / Receipt
+- [x] Message
+- [x] Send / ACK
+- [x] ACK FOR SEND
+- [ ] Finish JS API, Left proccess the remain messages.
+- [ ] Implements the TCP Server.
 
 
 

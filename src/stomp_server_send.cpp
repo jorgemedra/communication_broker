@@ -21,28 +21,29 @@ using namespace boost::beast::websocket;
 using header_type = std::list<stomp_header>;
 
 
-void stomp_sever::send_error_msg(int cnx_id, std::string message, bool close_cnx)
+// void stomp_sever::send_error_msg(int cnx_id, std::string message, bool close_cnx)
+// {
+//     std::stringstream out;
+//     std::string payload{""};
+//     header_type headers{{stomp_headers::HDR_ERROR_DESC, message}};
+//     stomp_message::gen_stomp_message(out, stomp_commands::CMD_ERROR, headers, payload);
+
+//     write(cnx_id, out.str(), close_cnx);
+// }
+
+void stomp_sever::send_error_msg(jomt::connection_info cnxi, std::string message, bool close_cnx)
 {
     std::stringstream out;
     std::string payload{""};
     header_type headers{{stomp_headers::HDR_ERROR_DESC, message}};
-    stomp_message::gen_stomp_message(out, stomp_commands::CMD_ERROR, headers, payload);
-
-    write(cnx_id, out.str(), close_cnx);
-}
-
-void stomp_sever::send_error_msg(std::shared_ptr<jomt::wscnx> cnx, std::string message, bool close_cnx)
-{
-    std::stringstream out;
-    std::string payload{""};
-    header_type headers{{stomp_headers::HDR_ERROR_DESC, message}};
 
     stomp_message::gen_stomp_message(out, stomp_commands::CMD_ERROR, headers, payload);
 
-    write(cnx, out.str(), close_cnx);
+    if(cnxi.type==jomt::WEBSOCKET)
+        wsserver::write(cnxi.id, out.str(), close_cnx);
 }
 
-void stomp_sever::send_connected_msg(std::shared_ptr<jomt::wscnx> cnx, std::shared_ptr<stomp_session> session)
+void stomp_sever::send_connected_msg(jomt::connection_info cnxi, std::shared_ptr<stomp_session> session)
 {
     std::stringstream out;
     std::string payload{""};
@@ -54,14 +55,16 @@ void stomp_sever::send_connected_msg(std::shared_ptr<jomt::wscnx> cnx, std::shar
         {stomp_headers::HDR_PROF_CODE, (double)session->profile},
         {stomp_headers::HDR_PROF_DESC, stomp_profile_keys::profile_description(session->profile)},
         {stomp_headers::HDR_DEST, session->destiny_id},
-        {stomp_headers::HDR_CNX_ID, (double)cnx->cnx_info().id }
+        {stomp_headers::HDR_CNX_ID, (double)cnxi.id }
     };
 
     stomp_message::gen_stomp_message(out, stomp_commands::CMD_CONNECTED, headers, payload);
-    write(cnx, out.str(), false);
+    // write(cnx, out.str(), false);
+    if (cnxi.type == jomt::WEBSOCKET)
+        wsserver::write(cnxi.id, out.str());
 }
 
-void stomp_sever::send_receipt_msg(std::string receipt_id, std::shared_ptr<jomt::wscnx> cnx, std::shared_ptr<stomp_session> session, bool close_it)
+void stomp_sever::send_receipt_msg(std::string receipt_id, jomt::connection_info cnxi, std::shared_ptr<stomp_session> session, bool close_it)
 {
     std::stringstream out;
     std::string payload{""};
@@ -70,11 +73,13 @@ void stomp_sever::send_receipt_msg(std::string receipt_id, std::shared_ptr<jomt:
         {stomp_headers::HDR_SESSION_ID, session->session_id},
         {stomp_headers::HDR_LOGIN, session->login_id},
         {stomp_headers::HDR_DEST, session->destiny_id},
-        {stomp_headers::HDR_CNX_ID, (double)cnx->cnx_info().id},
+        {stomp_headers::HDR_CNX_ID, (double)cnxi.id},
         {stomp_headers::HDR_RECEIPT_ID, receipt_id}};
 
     stomp_message::gen_stomp_message(out, stomp_commands::CMD_RECEIPT, headers, payload);
-    write(cnx, out.str(), close_it);
+    //write(cnx, out.str(), close_it);
+    if (cnxi.type == jomt::WEBSOCKET)
+        wsserver::write(cnxi.id, out.str());
 }
 
 void stomp_sever::send_send_msg(std::shared_ptr<stomp_message> original_msg, 
@@ -95,20 +100,27 @@ void stomp_sever::send_send_msg(std::shared_ptr<stomp_message> original_msg,
     };
 
     stomp_message::gen_stomp_message(out, stomp_commands::CMD_MESSAGE, headers, original_msg->payload);
-    int cnx_id = to_session->cnxs.front().id;
-    write(cnx_id, out.str(), false);
+    // int cnx_id = to_session->cnxs.front().id;
+    // write(cnx_id, out.str(), false);
+    auto cnxi = to_session->cnxs.front();
+    if (cnxi.type == jomt::WEBSOCKET)
+        wsserver::write(cnxi.id, out.str());
 
-     //TODO: Send a copy to all its subscribers.
+    // TODO: Send a copy to all its subscribers.
     for (auto it = to_session->subscribers.begin(); it != to_session->subscribers.end(); it++)
     {
         auto sub_ses = m_session_mng->fetch_session_by_id((*it));
         if (sub_ses->cnxs.size()>0)
-            write(sub_ses->cnxs.front().id, out.str(), false);
+        {
+            auto scnxi = sub_ses->cnxs.front();
+            if (scnxi.type == jomt::WEBSOCKET)
+                wsserver::write(scnxi.id, out.str());
+        }
     }
 }
 
-void stomp_sever::send_ack_msg( int cnx_id, std::shared_ptr<stomp_session> session, 
-                                std::string trans_id, stomp_errors ec, std::string_view info)
+void stomp_sever::send_ack_msg(jomt::connection_info cnxi, std::shared_ptr<stomp_session> session,
+                               std::string trans_id, stomp_errors ec, std::string_view info)
 {
     std::stringstream out;
     std::string payload{info};
@@ -120,5 +132,7 @@ void stomp_sever::send_ack_msg( int cnx_id, std::shared_ptr<stomp_session> sessi
     };
 
     stomp_message::gen_stomp_message(out, stomp_commands::CMD_ACK, headers, payload);
-    write(cnx_id, out.str(), false);
+    // write(cnx_id, out.str(), false);
+    if (cnxi.type == jomt::WEBSOCKET)
+        wsserver::write(cnxi.id, out.str());
 }
