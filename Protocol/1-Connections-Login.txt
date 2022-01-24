@@ -1,0 +1,265 @@
+# ********************************************
+#
+# Use this online tool to check this 
+# sequence diagram.
+#
+# https://sequencediagram.org/
+#
+# Important: Thise diagram only shows the 
+# parameter of each message but you must
+# considere the STOMP Protocolo V1.1, which
+# is desribed in this url:
+# 
+# https://stomp.github.io/stomp-specification-1.2.html
+#
+# ********************************************
+
+
+bottomparticipants
+participant #blue stomp-api
+participant #red stomp_server
+participant sck_cnx
+participant stomp_session_manager
+participant stomp_session
+
+
+frame #F0F0F0 Connetion & Login Scenaries
+
+note over stomp_session_manager:There is an unique\ninstance of this\nobject
+stomp-api-->stomp_server: WS Connection
+activate stomp_server
+stomp_server->*sck_cnx: <create>
+stomp_server-->sck_cnx: run() = Wait for data
+deactivate stomp_server
+
+aboxright left of stomp_server:<color #blue>**CONNECT** \naccept-version:1.2 \nlogin:{agent-id} \npasscode:{prof-secret-id} \nsecret-key:{App Secret Key}</color>
+stomp-api--#blue>stomp_server:**REQUEST**
+
+
+stomp_server->stomp_server:on_data_rx(cnx_id, data, cnx)
+// FOR on_data_rx
+activate stomp_server
+
+stomp_server->stomp_server: parser_message(data)
+
+
+alt Parse ERROR
+
+group #gray send error
+
+//activate stomp_server
+note over stomp_server, stomp_session_manager #yellow:There is an error on CONNECT, **an ERROR \nresponse will be send instead of a CONNECTED.**
+stomp_server->stomp_server:send_error_msg(pcnx.id, out, close_it);
+
+//send_error_msg
+activate stomp_server
+
+stomp_server-->sck_cnx: write(out, close_cnx = **true**)
+activate sck_cnx
+
+sck_cnx-->stomp_server:return
+//send_error_msg
+deactivate stomp_server
+
+aboxleft right of stomp-api:<color #red>**ERROR**\nerror-desc:{Error Description}</color>
+sck_cnx--#red>stomp-api: **RESPONSE**
+
+alt close_cnx == true
+sck_cnx->sck_cnx: close(beast::websocket::close_code::normal, ec)
+end // close_on_write == true
+
+deactivate sck_cnx
+
+
+//deactivate stomp_server
+end //send error
+
+note over stomp_server, stomp-api #red: END of the case.
+
+end //Parse ERROR
+
+stomp_server->stomp_server: proccess_message(stomp_msg, cnx)
+// for proccess_message
+
+stomp_server->stomp_server: **proccess_connect(msg,cnx)**
+//proccess_connect
+activate stomp_server
+
+stomp_server->stomp_server: Validate App Secret Key
+stomp_server->stomp_server: Validate Profile
+
+alt case:Invalid Secret-Key or Profile
+
+group #gray send error
+
+//activate stomp_server
+note over stomp_server, stomp_session_manager #yellow:There is an error on CONNECT, **an ERROR \nresponse will be send instead of a CONNECTED.**
+stomp_server->stomp_server:send_error_msg(pcnx.id, out, close_it);
+
+//send_error_msg
+activate stomp_server
+
+stomp_server-->sck_cnx: write(out, close_cnx = **true**)
+activate sck_cnx
+
+sck_cnx-->stomp_server:return
+//send_error_msg
+deactivate stomp_server
+
+aboxleft right of stomp-api:<color #red>**ERROR**\nerror-desc:{Error Description}</color>
+sck_cnx--#red>stomp-api: **RESPONSE**
+
+alt close_cnx == true
+sck_cnx->sck_cnx: close(beast::websocket::close_code::normal, ec)
+end // close_on_write == true
+
+deactivate sck_cnx
+
+
+//deactivate stomp_server
+end //send error
+
+note over stomp_server, stomp-api #red: END of the case.
+
+else case: Profile and Secret Key OK
+
+
+group #lightgreen register_session
+stomp_server->stomp_session_manager:register_session(cnxinf, login_id, profile)
+
+activate stomp_session_manager
+
+stomp_session_manager->stomp_session_manager:init return variables:\n**stomp_errors ec = stomp_errors::OK;\njomt::connection_info cnx_to_close{cnxinf};\nbool close_session{false};**\n
+
+stomp_session_manager->stomp_session_manager: retrive_session(loginid, prof)
+
+alt Not Exists on **m_login_session**
+	
+stomp_session_manager->*stomp_session: <create>(loingid, prof)
+
+stomp_session_manager<--stomp_session_manager:The LoginId is not register so \nit creates a new session.\n\nreturn (**is_new = true**, ref(**session**))
+
+else Exists on **m_login_session**
+
+stomp_session_manager<--stomp_session_manager:Fetch and return the session \npreviously created.\n\nreturn (**is_new = false**, ref(**session**))
+end // alt Not Exists on **m_login_session**
+
+alt is_new == true
+	
+stomp_session_manager->stomp_session_manager:**Register the new session and link its connection:**\nm_sessions[session.session_id] = session;\nm_dest_session[session.destiny_id] = session.session_id;\nm_login_session[session.login_id] = session.session_id;\nm_cnx_session[cnxinf.id] = session.session_id;\nsession.cnxs.push_back(cnxinf);
+
+else is_new == false
+
+alt session.profile == stomp_profile::agent or session.profile == stomp_profile::super_agent
+
+alt session.profile != prof 
+stomp_session_manager->stomp_session_manager: ec = stomp_errors::WRONG_PROFILE_REGISTERED;
+else 
+
+stomp_session_manager->stomp_session_manager:ec = stomp_errors::NEW_CONNECTION_LOGGED;\n**Return the previous connection to be closed**\n**cnx_to_close = session.cnxs.front();**\n\nLink the new connection:\nm_cnx_session[cnxinf.id] = session.session_id;\nsession.cnxs.push_back(cnxinf);
+
+end //session.profile != prof 
+
+
+else 
+stomp_session_manager->stomp_session_manager: ec = stomp_errors::LOGIN_ID_ALREADY_LOGGED;
+end // alt session.profile == stomp_profile::agent or session.profile == stomp_profile::super_agent
+
+end //alt is_new == true
+
+
+stomp_session_manager-->stomp_server:(session, ec, cnx_to_close, **close_session**)
+deactivate stomp_session_manager
+
+end //group register_session
+
+//Chech the Errro Code (ec)
+alt #red  ec != stomp_errors::OK
+
+stomp_server->stomp_server:init variables:\n\nstd::stringstream out;\n**bool b_end{false};**
+
+
+alt #white ec == stomp_errors::NEW_CONNECTION_LOGGED
+
+stomp_server->stomp_server:out = Connection disconnected due to: {ERROR DESC} \n{Connection INFO}
+
+else default
+
+stomp_server->stomp_server:out = Connection rejected due to: {ERROR DESC} \n{Connection INFO}\n**b_end = true**
+
+end // ec == stomp_errors::NEW_CONNECTION_LOGGED
+
+note over stomp-api, sck_cnx #yellow:The error message is sent to weather: \n1. Current connection (Requester). In case the session was not accepted.\n2. Previous Session. In case the new connection replaces the previous session. \n**In this case the CONNECTED message will be sent to the current connection\nafter sending the ERROR message to the previous connection**.
+
+group #gray send error
+
+//activate stomp_server
+note over stomp_server, stomp_session_manager #yellow:There is an error on CONNECT, **an ERROR \nresponse will be send instead of a CONNECTED.**
+stomp_server->stomp_server:send_error_msg(pcnx.id, out, close_it);
+
+//send_error_msg
+activate stomp_server
+
+stomp_server-->sck_cnx:write(out, **close_it**)
+activate sck_cnx
+
+sck_cnx-->stomp_server:return
+//send_error_msg
+deactivate stomp_server
+
+aboxleft right of stomp-api:<color #red>**ERROR**\nerror-desc:{Error Description}</color>
+sck_cnx--#red>stomp-api: **RESPONSE**
+
+
+alt close_cnx == true
+sck_cnx->sck_cnx: close(beast::websocket::close_code::normal, ec)
+end // close_on_write == true
+
+deactivate sck_cnx
+
+
+//deactivate stomp_server
+end //send error
+
+alt #white b_end == true
+stomp_server<--stomp_server:end of **proccess_connect**
+note over stomp_server, stomp_session_manager #yellow: End of Proccess Connect\nIn this case an **ERROR** is sent but not **CONNECTED**
+
+note over stomp_server, stomp-api #red: END of the case.
+end //b_end == true
+
+
+end // ec != stomp_errors::OK
+
+
+stomp_server->stomp_server: send_connected_msg(cnx, session)
+//send_connected_msg
+activate stomp_server
+
+stomp_server-->sck_cnx:write(out, close_cnx = false)
+activate sck_cnx
+
+stomp_server<--sck_cnx: return
+//send_connected_msg
+deactivate stomp_server
+
+
+deactivate stomp_server
+//on_data_rx
+deactivate stomp_server
+
+
+aboxleft right of stomp-api:<color #blue>**CONNECTED** \naccept-version:1.2 \nsession-id:{session-id} \nlogin:{agent-id} \nprofile-code:{Prof Code} \nprofile-desc:{Prof Desc} \n**destination:{dest-id}** \nconnection-id:{Conn Id}</color>
+sck_cnx--#blue>stomp-api:**RESPONSE**
+deactivate sck_cnx
+
+
+end //alt Parse error
+
+
+
+
+
+
+
+

@@ -1,0 +1,23 @@
+body{
+    background: darkslategrey;
+}
+
+label{
+    color: white;
+}
+
+.input_txt
+{
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11;
+    background: black;
+    color: lightyellow;
+}
+
+textarea
+{
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11;
+    background: black;
+    color: lightyellow;
+}

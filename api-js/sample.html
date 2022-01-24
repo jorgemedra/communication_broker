@@ -1,0 +1,48 @@
+
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+        <link rel="stylesheet" href="css/sample.css">
+        <script src="https://code.jquery.com/jquery-3.5.0.js"></script>
+        <script src="lib/stomp-api-1-0.js"></script>
+        <script src="js/sample.js"></script>
+    </head>
+    <body onload="iniForm()">
+        
+    <div id="Controles"> 
+        <div id="dvCNX">
+            <label>URL:</label>
+            <input type="text"    class="input_txt"  id="txtURL"         value="ws://localhost:61614" /> 
+            
+            <label>User:</label>
+            <input type="text"    class="input_txt"  id="txtUser"         value="jorge" /> 
+            <label>Password:</label>
+            <input type="password" class="input_txt" id="txtPassword"         value="medra" /> 
+
+            <input type="button"    id="btnConnect"     value="Open connection"     onClick="OpenConnection()" /> 
+            <input type="button"    id="btnClose"       value="Close connection"     onClick="CloseConnection()" /> 
+        <div/>
+        <div id="dvSuscribe">            
+            <label id="lbID">Session ID</label>
+            <input type="text"    class="input_txt"  id="txtID"    value="1" /> 
+            <label id="lbType">Queue</label>
+            <input type="text"    class="input_txt"  id="txtDestSuscribe"    value="MyDestiny" /> 
+            <input type="button"    id="btnSuscribe"    value="Suscribe To" onClick="Suscribe()" /> 
+            <input type="button"    id="btnUnSuscribe"  value="Unsuscribe To" onClick="Unsuscribe()" /> 
+            <label>Is Topic?</label>
+            <input type="checkbox"  id="chkTopic"       value="Is Topic"    onChange="OnType()" /> 
+        </div>
+        <div id="dvSuscribe">            
+            <label id="lbID">Destiny ID</label>            
+            <input type="text"   class="input_txt"  id="txtDestiny" value="MyDestiny" /> 
+            <label>Is Topic?</label>
+            <input type="checkbox"  id="chkTopicSend"       value="Is Topic"    onChange="OnType()" /> 
+            <p/>
+            <input type="button"    id="btnSend"  value="Send Message" onClick="Send()" /> 
+            <textarea id="txtTxMessage" rows="4" cols="50">This is my sample message to send...</textarea>
+            <textarea id="txtRxMessage" rows="4" cols="50"></textarea>
+        </div>        
+    <div>
+
+    </body>
+</html>

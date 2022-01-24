@@ -1,0 +1,235 @@
+
+
+# ********************************************
+#
+# Use this online tool to check this 
+# sequence diagram.
+#
+# https://sequencediagram.org/
+#
+# Important: Thise diagram only shows the 
+# parameter of each message but you must
+# considere the STOMP Protocolo V1.1, which
+# is desribed in this url:
+# 
+# https://stomp.github.io/stomp-specification-1.2.html
+#
+# ********************************************
+
+bottomparticipants
+participant #blue stomp-api
+participant #red stomp_server
+participant sck_server
+participant sck_cnx
+participant stomp_session_manager
+participant stomp_session
+participant stomp_subscription_manager
+
+frame #F0F0F0 DISCONNECT and Close Connection
+
+
+group #EFEFEF ON DISCONNECT MESSAGE
+
+aboxright left of stomp_server:<color #blue>**DISCONNECT** \nreceipt-id:{receipt-id}</color>
+stomp-api--#blue>stomp_server:**REQUEST**
+
+
+on_data_rx(cnx_id, data, cnx)
+// FOR on_data_rx
+activate stomp_server
+
+stomp_server->stomp_server: parser_message(data)
+
+
+alt Parse ERROR
+
+group #gray send error
+
+//activate stomp_server
+note over stomp_server, stomp_session_manager #yellow:There is an error on CONNECT, **an ERROR \nresponse will be send instead of a CONNECTED.**
+stomp_server->stomp_server:send_error_msg(pcnx.id, out, close_it);
+
+//send_error_msg
+activate stomp_server
+
+stomp_server-->sck_cnx: write(out, close_cnx = **true**)
+activate sck_cnx
+
+sck_cnx-->stomp_server:return
+//send_error_msg
+deactivate stomp_server
+
+aboxleft right of stomp-api:<color #red>**ERROR**\nerror-desc:{Error Description}</color>
+sck_cnx--#red>stomp-api: **RESPONSE**
+
+alt close_cnx == true
+sck_cnx->sck_cnx: close(beast::websocket::close_code::normal, ec)
+end // close_on_write == true
+
+deactivate sck_cnx
+
+
+//deactivate stomp_server
+end //send error
+
+note over stomp_server, stomp-api #red: END of the case.
+
+end //Parse ERROR
+
+stomp_server->stomp_server: proccess_message(stomp_msg, cnx)
+// for proccess_message
+
+stomp_server->stomp_server: **proccess_disconnect(msg,cnx)**
+//proccess_disconnect
+activate stomp_server
+
+alt The session is no longer present
+group #gray send error
+
+note over stomp_server, stomp_session_manager #yellow:There is an error on CONNECT, **an ERROR \nresponse will be send instead of a CONNECTED.**
+stomp_server->stomp_server:send_error_msg(pcnx.id, out, close_it);
+
+//send_error_msg
+activate stomp_server
+
+stomp_server-->sck_cnx: write(out, close_cnx = **true**)
+
+sck_cnx-->stomp_server:return
+//send_error_msg
+deactivate stomp_server
+//proccess_disconnect
+deactivate stomp_server
+
+activate sck_cnx
+
+aboxleft right of stomp-api:<color #red>**ERROR**\nerror-desc:{Error Description}</color>
+sck_cnx--#red>stomp-api: **RESPONSE**
+
+alt close_cnx == true
+sck_cnx->sck_cnx: close(beast::websocket::close_code::normal, ec)
+end // close_on_write == true
+
+deactivate sck_cnx
+
+end //send error
+note over stomp_server, stomp-api #red: END of the case.
+end // alt The session is no longer present
+
+stomp_server->stomp_server: send_receipt_msg(recep_id, cnx, session, **close_it=true**)
+//send_receipt_msg
+activate stomp_server
+
+stomp_server-->sck_cnx: write(out, close_cnx = **true**)
+activate sck_cnx
+
+sck_cnx-->stomp_server:return
+//send_receipt_msg
+deactivate stomp_server
+//proccess_disconnect
+deactivate stomp_server
+
+aboxleft right of stomp-api:<color #blue>**RECEIPT**\nsession-id:{session-id}\nlogin:{login-id}\ndestination:{destination-id}\nconnection-id:{connection-id}\nreceipt-id:{receipt-id}\n</color>
+sck_cnx--#blue>stomp-api: **RESPONSE**
+
+alt #yellow close_cnx == true
+sck_cnx-#red>sck_cnx: **close(beast::websocket::close_code::normal, ec)**
+note over sck_server, sck_cnx #red:at this point, the socket will close \nand throws **IO EXCEPTION**
+
+end // close_on_write == true
+
+deactivate sck_cnx
+
+end //ON DISCONNECT MESSAGE
+
+
+/*******************************************
+Second Part, ON DISCONECT EVENT.
+********************************************/
+
+note over stomp-api, stomp_session #yellow:This process always runs because it's triggered by the **IO EXCEPTION** event on the socket.
+group ON DISCONNECT EVENT ON CNX
+
+sck_cnx-#red>sck_cnx: **IO EXCEPTION**
+
+// io exception
+activate sck_cnx 
+
+//**** BEGIN: CNX ERRORS ****
+note over stomp-api, stomp_session #red:The process which could rise an error:\n+ async_handshake\n+ async_accept\n+ async_read\n+ async_write\n\nAt this point, the socket is no longer opened.
+sck_cnx->sck_cnx: **close(protocol_error, ec)**
+//**** END: CNX ERRORS ****
+
+// Close 
+activate sck_cnx 
+
+alt #yellow SOCKET IS NOT OPENED
+
+sck_cnx->sck_server: cnx_closed(m_cnx_info.id, ec)
+//cnx_closed
+activate sck_server 
+
+sck_server->sck_server:unregiter_wscnx(id)\n/***\nm_cnxs.erase(id);\nreturn: **true**, if it was removed; **false** otherwise.\n***/
+
+//unregiter_wscnx
+activate sck_server 
+
+alt #white unregiter_wscnx(id) == true
+sck_server->stomp_server: on_connection_end(id, ec)
+
+////on_connection_end
+activate stomp_server 
+
+stomp_server->stomp_session_manager: session = m_session_mng->fetch_session_by_cnx(id)
+
+loop #green for each cnx in session.cnxs 
+alt #white Unliking Connection if cnx->id == id
+stomp_server->stomp_session: session.cnxs.erase(cnx);
+end
+end//loop
+
+//deactivate stomp_server
+end //alt unregiter_wscnx(id) == true
+
+alt #green session->cnxs.size() == 0  NO MORE CONNECTIONS ARE IN THE SESSION, proceed to remove the session.
+
+stomp_server--#green>stomp_subscription_manager: async_init_unsubscription(session, "cnx-end", false);
+aboxright left of stomp_subscription_manager #yellow:This process is described \nin detail over the \n**UnSubscription Flow**.
+stomp_server->stomp_session_manager: unregister_session(id)
+
+//unregister_session
+activate stomp_session_manager 
+
+alt if m_cnx_session has id
+
+stomp_session_manager->stomp_session_manager: session = m_sessions[m_cnx_session[id]]
+
+loop for each cnx in session.cnxs
+stomp_session_manager->stomp_session_manager: m_cnx_session.erase(cnx.id);
+end
+
+stomp_session_manager->stomp_session_manager: m_dest_session.erase(session.destiny_id)
+
+stomp_session_manager->stomp_session_manager:  m_login_session.erase(session.login_id)
+
+stomp_session_manager->stomp_session_manager: m_sessions.erase(session.id)
+
+end //if m_cnx_session has id
+
+stomp_server<--stomp_session_manager:return
+//unregister_session
+deactivate stomp_session_manager 
+end //session->cnxs.size() == 0
+
+//on_connection_end
+deactivate stomp_server 
+//unregiter_wscnx
+deactivate sck_server 
+
+end //unregiter_wscnx(id) == true
+
+//  Close 
+deactivate sck_cnx 
+// io exception
+deactivate sck_cnx 
+
+end //SOCKET IS NOT OPENED

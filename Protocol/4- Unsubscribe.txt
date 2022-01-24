@@ -1,0 +1,272 @@
+
+# ********************************************
+#
+# Use this online tool to check this 
+# sequence diagram.
+#
+# https://sequencediagram.org/
+#
+# Important: Thise diagram only shows the 
+# parameter of each message but you must
+# considere the STOMP Protocolo V1.1, which
+# is desribed in this url:
+# 
+# https://stomp.github.io/stomp-specification-1.2.html
+#
+# ********************************************
+
+bottomparticipants
+participant #blue stomp-api
+participant #red stomp_server
+participant sck_cnx
+participant stomp_session_manager
+participant #green stomp_subscription_manager
+participant stomp_subscription_task
+participant #gray task_queue
+frame UNSUBSCRIPTION FLOW
+
+
+aboxright left of stomp_server:<color #blue>**UNSUBSCRIBE** \nsession-id:{session-id}\ntransaction-id:{trans-id}\n</color>
+stomp-api--#blue>stomp_server:**REQUEST**
+
+
+stomp_server->stomp_server: on_data_rx(cnx_id, data, cnx)
+//on_data_rx
+activate stomp_server
+
+stomp_server->stomp_server: parser_message(data)
+
+
+alt Parse ERROR
+
+group #gray send error
+
+//activate stomp_server
+note over stomp_server, stomp_session_manager #yellow:There is an error on CONNECT, **an ERROR \nresponse will be send instead of a CONNECTED.**
+stomp_server->stomp_server:send_error_msg(pcnx.id, out, close_it);
+
+//send_error_msg
+activate stomp_server
+
+stomp_server-->sck_cnx: write(out, close_cnx = **true**)
+activate sck_cnx
+
+sck_cnx-->stomp_server:return
+//send_error_msg
+deactivate stomp_server
+
+aboxleft right of stomp-api:<color #red>**ERROR**\nerror-desc:{Error Description}</color>
+sck_cnx--#red>stomp-api: **RESPONSE**
+
+alt close_cnx == true
+sck_cnx->sck_cnx: close(beast::websocket::close_code::normal, ec)
+end // close_on_write == true
+
+deactivate sck_cnx
+
+
+//deactivate stomp_server
+end //send error
+
+note over stomp_server, stomp-api #red: END of the case.
+
+end // Parse ERROR
+
+
+stomp_server->stomp_server:proccess_message(msg, cnx) \n=> \nproccess_unsubscribe(msg, cnx)
+
+//proccess_message; proccess_subscribe
+activate stomp_server
+
+alt The session is no longer present
+group #gray send error
+
+note over stomp_server, stomp_session_manager #yellow:There is an error on CONNECT, **an ERROR \nresponse will be send instead of a CONNECTED.**
+stomp_server->stomp_server:send_error_msg(pcnx.id, out, close_it);
+
+//send_error_msg
+activate stomp_server
+
+stomp_server-->sck_cnx: write(out, close_cnx = **true**)
+
+sck_cnx-->stomp_server:return
+//send_error_msg
+deactivate stomp_server
+//proccess_disconnect
+deactivate stomp_server
+
+activate sck_cnx
+
+aboxleft right of stomp-api:<color #red>**ERROR**\nerror-desc:{Error Description}</color>
+sck_cnx--#red>stomp-api: **RESPONSE**
+
+alt close_cnx == true
+sck_cnx->sck_cnx: close(beast::websocket::close_code::normal, ec)
+end // close_on_write == true
+
+deactivate sck_cnx
+
+end //send error
+note over stomp_server, stomp-api #red: END of the case.
+end // alt The session is no longer present
+
+
+stomp_server-#blue>stomp_subscription_manager:**async_init_unsubscription(session, dest, trans, is_regex)**
+
+
+
+activate stomp_subscription_manager
+stomp_subscription_manager-->*stomp_subscription_task:<create>
+
+aboxright left of stomp_subscription_task:stomp_subscription_task{\n  trans_id,\n  stomp_subscription_tasks::UNSUBSCRIBE,\n  stomp_destination_type::DISABLE**,\n  destination,\n  **session_owner=session**,\n  **send_call_back = true**\n}
+
+
+stomp_subscription_manager->task_queue:add_task(**task**);
+activate task_queue
+
+task_queue->task_queue:<color #blue>**m_cv.notify_all()**</color>
+stomp_subscription_manager<--task_queue: return
+deactivate task_queue
+
+stomp_server<--stomp_subscription_manager: return
+deactivate stomp_subscription_manager
+//proccess_message; proccess_subscribe
+deactivate stomp_server
+//on_data_rx
+deactivate stomp_server
+
+
+
+
+
+
+//********************************
+//**** Asynchronous execution ****
+//********************************
+
+//loop task
+loop #00ffef while there are tasks on queue
+
+task_queue->task_queue:<color #blue>**m_cv.wait(lck_thr)**</color>\n**task** = dequeue_task()\n
+
+//dequeue_task
+activate task_queue
+
+task_queue->stomp_subscription_manager: on_task(**task**)
+//on_task
+activate stomp_subscription_manager
+
+stomp_subscription_manager->stomp_subscription_manager:perform_unsubscription(**task**)
+
+aboxleft right of stomp_subscription_manager:std::stringstream out;\nstomp::stomp_errors ec{stomp_errors::OK};\n
+
+
+
+
+//---------End of ON TASK
+loop for each subscriber in session.subscribers
+
+stomp_subscription_manager->stomp_session_manager: fetch_session_by_id(subscriber_id)
+activate stomp_session_manager
+
+stomp_subscription_manager<--stomp_session_manager: **subscriber** = session_ret
+deactivate stomp_session_manager
+
+alt exist subscriber session
+
+aboxleft right of stomp_subscription_manager:**subscriber.subscribers.erase(session.session_id)\nsubscriber.subscriptions.erase(session.session_id)**\nout = "Subscriber: [subscriber.login_id]:\n[subscriber.session_id]:[subscriber.destiny_id]"\n
+
+end //alt exist subscriber
+end //loop subscribers
+
+
+loop for each subscription_id in session.subscriptions
+
+stomp_subscription_manager->stomp_session_manager: fetch_session_by_id(subscription_id)
+activate stomp_session_manager
+
+stomp_subscription_manager<--stomp_session_manager:**subscription** = session_ret
+deactivate stomp_session_manager
+
+alt exist subscription session
+
+aboxleft right of stomp_subscription_manager:**subscription.subscribers.erase(session.session_id)\nsubscription.subscriptions.erase(session.session_id)**\nout = "Subscription: [subscription.login_id]:\n[subscription.session_id]:[subscription.destiny_id]"\n
+
+end //alt exist subscriber
+end //loop subscribers
+
+
+aboxleft right of stomp_subscription_manager:session.subscribers.clear()\nsession.subscriptions.clear()
+
+
+//Begin Report to SomptServer
+
+stomp_subscription_manager->stomp_server: on_subscription_task_ends(task, info, ec)
+//on_subscription_task_ends
+activate stomp_server
+
+
+
+
+alt task.send_call_back == true
+
+note over stomp-api, stomp_server #yellow:When the flag **task.send_call_back** is false,\nthe server wont send any **ACK** message to the api. \n\nIts sceneary applys in case of the client has been\ndisconnected, sending wheather a DISCONNECT message\nor not.
+
+aboxleft right of stomp_server:The firts connection is the \nactive connection, no other.\n\ncnx_id = task.owner.cnxs.front().id;
+
+//Send ACK
+group #afafaf Send ACK
+
+stomp_server->stomp_server: send_ack_msg(cnx_id, task->owner, task.trans_id, ec, info)
+
+
+
+//send_receipt_msg
+activate stomp_server
+
+stomp_server-->sck_cnx: write(out, close_cnx = **true**)
+activate sck_cnx
+
+sck_cnx-->stomp_server:return
+
+stomp_subscription_manager<--stomp_server: return
+
+//send_receipt_msg
+deactivate stomp_server
+//proccess_disconnect
+deactivate stomp_server
+
+task_queue<--stomp_subscription_manager:return
+//on_task
+deactivate stomp_subscription_manager
+//dequeue_task
+deactivate task_queue
+
+
+
+aboxleft right of stomp-api:<color #blue>**ACK**\nsession-id:{session-id}\ntransaction-id:{trans-id}\nerror-desc:{Error Description}\n</color>
+sck_cnx--#blue>stomp-api: **RESPONSE**
+
+deactivate sck_cnx
+
+end //Send ACK
+
+end // task.send_call_back == true
+
+
+
+
+
+
+
+deactivate stomp_server
+//End of report to Report Server
+
+
+
+
+
+
+
+
+end //loop
