@@ -12,6 +12,7 @@
 #include <set>
 #include <mutex>
 #include <iostream>
+#include <string_view>
 
 #include <boost/asio.hpp>
 #include <boost/function.hpp>
@@ -31,6 +32,14 @@ namespace jomt
         SOCKET_IP,
         WEBSOCKET
     };
+
+    struct server_info
+    {
+        int port{-1};
+        socket_type type{socket_type::UKNOWN};
+    };
+
+    std::ostream &operator<<(std::ostream &out, const server_info &srvi);
 
     struct connection_info
     {
@@ -60,14 +69,24 @@ namespace jomt
         
     };
     
+    struct basic_server
+    {
+        virtual void on_server_start(server_info srvi) = 0;
+        virtual void on_server_stop(server_info srvi, const boost::system::error_code &ec) = 0;
+        virtual void on_new_connection(server_info srvi, int id, connection_info cnxi) = 0;
+        virtual void on_connection_end(server_info srvi, int id, const boost::system::error_code &ec) = 0;
+        virtual void on_data_rx(server_info srvi, int id, std::string_view data, connection_info cnxi) = 0;
+    };
+
     class ntwrk_basic
     {
         std::atomic<bool> _bRunning;
         std::thread *_tr;        
         void intRun();
-  
+    protected:
+        server_info _info;
     public:
-        ntwrk_basic() : _bRunning{false} , _tr{nullptr} {};
+        ntwrk_basic():_bRunning{false}, _tr{nullptr}{};
         ~ntwrk_basic();
         
         void start();
@@ -75,9 +94,11 @@ namespace jomt
         void join();
         bool isRunning() const;
 
+        virtual server_info info() = 0;
         virtual void run() = 0;
         virtual void onStart() = 0;
         virtual void onStop() = 0;
+        
     };
 
 } //namespace jomt

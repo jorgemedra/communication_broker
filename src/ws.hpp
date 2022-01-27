@@ -3,7 +3,7 @@
 #ifndef WS_HPP
 #define WS_HPP
 
-#include "ntwrk.h"
+#include "ntwrk.hpp"
 #include <thread>
 #include <mutex>
 #include <memory>
@@ -43,6 +43,7 @@ namespace jomt
 
         std::unique_ptr<t_ws_tcp> m_ws;
         std::unique_ptr<t_ws_ssl> m_wss;
+        std::mutex m_mtx_write;
 
         void handshake_ssl();
 
@@ -86,6 +87,7 @@ namespace jomt
         //TODO: Change it by a MACRO on Compiler time
         static const int MAX_CONNECTIONS = 1024;
 
+        std::shared_ptr<jomt::basic_server> m_mainsrv;
         int m_port;
         boost::asio::io_context m_ioc;
         boost::asio::ssl::context m_ssl_ioc;
@@ -101,15 +103,28 @@ namespace jomt
         std::pair <int, connection_info> regiter_wscnx(boost::asio::ip::tcp::socket &&socket);
         bool unregiter_wscnx(int id);
 
-    public:
-        wsserver(int bind_port,
+        wsserver(std::shared_ptr<jomt::basic_server> server, int bind_port,
                  int max_cnxs = wsserver::MAX_CONNECTIONS,
                  boost::asio::ssl::context::method mtd = boost::asio::ssl::context::sslv23_server);
+
+    public:
+        static std::shared_ptr<wsserver> create(std::shared_ptr<jomt::basic_server> server, int bind_port,
+                                                int max_cnxs = wsserver::MAX_CONNECTIONS,
+                                                boost::asio::ssl::context::method mtd = boost::asio::ssl::context::sslv23_server)
+        {
+            return std::shared_ptr<wsserver>(new wsserver(server, bind_port, max_cnxs,mtd));
+        }
+
+        std::shared_ptr<wsserver> get()
+        {
+            return shared_from_this();
+        }
 
         void set_ssl_options(std::string cert_path, std::string key_path, std::string pem_path);
 
         std::pair<bool, std::shared_ptr<wscnx>> fetch_cnx(int id);
 
+        jomt::server_info info();
         void run();
         void onStart();
         void onStop();
@@ -119,13 +134,13 @@ namespace jomt
 
         void write(int id, std::string_view data, bool close_it = false);
 
-        virtual void on_server_start() = 0;
-        virtual void on_server_stop(const boost::system::error_code &ec) = 0;
+        void on_data_rx(int id, std::string_view data, connection_info cnxi);
 
-        virtual void on_new_connection(int id, connection_info cnxi) = 0;
-        virtual void on_connection_end(int id, const boost::system::error_code &ec) = 0;
-
-        virtual void on_data_rx(int id, std::string_view data, connection_info cnxi) = 0;
+        // virtual void on_server_start() = 0;
+        // virtual void on_server_stop(const boost::system::error_code &ec) = 0;
+        // virtual void on_new_connection(int id, connection_info cnxi) = 0;
+        // virtual void on_connection_end(int id, const boost::system::error_code &ec) = 0;
+        // virtual void on_data_rx(int id, std::string_view data, connection_info cnxi) = 0;
     };
 
 

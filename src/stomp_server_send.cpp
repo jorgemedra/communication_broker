@@ -40,7 +40,7 @@ void stomp_sever::send_error_msg(jomt::connection_info cnxi, std::string message
     stomp_message::gen_stomp_message(out, stomp_commands::CMD_ERROR, headers, payload);
 
     if(cnxi.type==jomt::WEBSOCKET)
-        wsserver::write(cnxi.id, out.str(), close_cnx);
+        m_wsserver->write(cnxi.id, out.str(), close_cnx);
 }
 
 void stomp_sever::send_connected_msg(jomt::connection_info cnxi, std::shared_ptr<stomp_session> session)
@@ -61,7 +61,7 @@ void stomp_sever::send_connected_msg(jomt::connection_info cnxi, std::shared_ptr
     stomp_message::gen_stomp_message(out, stomp_commands::CMD_CONNECTED, headers, payload);
     // write(cnx, out.str(), false);
     if (cnxi.type == jomt::WEBSOCKET)
-        wsserver::write(cnxi.id, out.str());
+        m_wsserver->write(cnxi.id, out.str());
 }
 
 void stomp_sever::send_receipt_msg(std::string receipt_id, jomt::connection_info cnxi, std::shared_ptr<stomp_session> session, bool close_it)
@@ -79,7 +79,7 @@ void stomp_sever::send_receipt_msg(std::string receipt_id, jomt::connection_info
     stomp_message::gen_stomp_message(out, stomp_commands::CMD_RECEIPT, headers, payload);
     //write(cnx, out.str(), close_it);
     if (cnxi.type == jomt::WEBSOCKET)
-        wsserver::write(cnxi.id, out.str());
+        m_wsserver->write(cnxi.id, out.str());
 }
 
 void stomp_sever::send_send_msg(std::shared_ptr<stomp_message> original_msg, 
@@ -104,7 +104,7 @@ void stomp_sever::send_send_msg(std::shared_ptr<stomp_message> original_msg,
     // write(cnx_id, out.str(), false);
     auto cnxi = to_session->cnxs.front();
     if (cnxi.type == jomt::WEBSOCKET)
-        wsserver::write(cnxi.id, out.str());
+        m_wsserver->write(cnxi.id, out.str());
 
     // TODO: Send a copy to all its subscribers.
     for (auto it = to_session->subscribers.begin(); it != to_session->subscribers.end(); it++)
@@ -114,7 +114,7 @@ void stomp_sever::send_send_msg(std::shared_ptr<stomp_message> original_msg,
         {
             auto scnxi = sub_ses->cnxs.front();
             if (scnxi.type == jomt::WEBSOCKET)
-                wsserver::write(scnxi.id, out.str());
+                m_wsserver->write(scnxi.id, out.str());
         }
     }
 }
@@ -134,5 +134,5 @@ void stomp_sever::send_ack_msg(jomt::connection_info cnxi, std::shared_ptr<stomp
     stomp_message::gen_stomp_message(out, stomp_commands::CMD_ACK, headers, payload);
     // write(cnx_id, out.str(), false);
     if (cnxi.type == jomt::WEBSOCKET)
-        wsserver::write(cnxi.id, out.str());
+        m_wsserver->write(cnxi.id, out.str());
 }

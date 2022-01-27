@@ -21,16 +21,18 @@ using namespace boost::beast;
 using namespace boost::beast::websocket;
 using namespace jomt;
 
-wsserver::wsserver( int bind_port, 
-                    int max_cnxs,
-                    ssl::context::method mtd) : m_port{bind_port},
-                                                m_ioc{},
-                                                m_ssl_ioc(mtd),
-                                                m_acceptor(m_ioc, ip::tcp::endpoint(ip::tcp::v4(), m_port)),
-                                                m_cnxs{}, m_counter{0},
-                                                m_stck_ids{},
-                                                m_lockcnx{},
-                                                m_is_ssl{false}
+wsserver::wsserver(std::shared_ptr<jomt::basic_server> server,
+                   int bind_port,
+                   int max_cnxs,
+                   ssl::context::method mtd) : m_mainsrv{server},
+                                               m_port{bind_port},
+                                               m_ioc{},
+                                               m_ssl_ioc(mtd),
+                                               m_acceptor(m_ioc, ip::tcp::endpoint(ip::tcp::v4(), m_port)),
+                                               m_cnxs{}, m_counter{0},
+                                               m_stck_ids{},
+                                               m_lockcnx{},
+                                               m_is_ssl{false}
 {
     initIdQueue(max_cnxs);
 }
@@ -62,7 +64,7 @@ void wsserver::set_ssl_options(std::string crt_path, std::string key_path, std::
     catch (const boost::wrapexcept<boost::system::system_error> &ec)
     {
         std::cout << "ERROR::set_ssl_options:: " << ec.what() << "\n";
-        on_server_stop(ec.code());
+        m_mainsrv->on_server_stop(info(), ec.code());
         exit(1);
     }
 
@@ -79,10 +81,15 @@ std::pair<bool, std::shared_ptr<wscnx>> wsserver::fetch_cnx(int id)
     return {true,it->second};
 }
 
+jomt::server_info wsserver::info()
+{
+    return {m_port, jomt::WEBSOCKET};
+}
+
 void wsserver::onStart()
 {
     //std::cout << "[onStart] Runnig WSServer for IPV4 and on port [" << m_port << "]\n";
-    on_server_start();
+    m_mainsrv->on_server_start(info());
 }
 
 void wsserver::onStop()
@@ -96,7 +103,7 @@ void wsserver::onStop(const boost::system::error_code &ec)
     m_acceptor.cancel();
     m_ioc.stop();
     m_acceptor.close();
-    on_server_stop(ec);
+    m_mainsrv->on_server_stop(info(), ec);
 }
 
 void wsserver::run()
@@ -130,7 +137,7 @@ void wsserver::wait_for_connections()
 {
     //std::cout << "[wait_for_connections] Waitting for a new connection.\n";
     m_acceptor.async_accept(m_ioc,
-                            [self{shared_from_this()}](const boost::system::error_code &ec, ip::tcp::socket socket)
+                            [self{get()}](const boost::system::error_code &ec, ip::tcp::socket socket)
                             {
                                 if (ec)
                                 {
@@ -140,7 +147,7 @@ void wsserver::wait_for_connections()
                                 else
                                 {
                                     auto [id, cnxi] = self->regiter_wscnx(std::move(socket));
-                                    self->on_new_connection(id, cnxi);
+                                    self->m_mainsrv->on_new_connection(self->info(), id, cnxi);
                                 }
 
                                 self->wait_for_connections();
@@ -152,7 +159,7 @@ void wsserver::cnx_closed(int id, const boost::system::error_code &ec)
     //std::cout << "[cnx_closed] The connection [" << id << "].\n";
     if (unregiter_wscnx(id))
     {
-        on_connection_end(id, ec);
+        m_mainsrv->on_connection_end(info(), id, ec);
     }
     //std::cout << "[cnx_closed] END.\n";
 }
@@ -191,4 +198,9 @@ void wsserver::write(int id, std::string_view data, bool close_it)
     auto it = m_cnxs.find(id);
     if(it != m_cnxs.end())
         it->second->write(data, close_it);
+}
+
+void wsserver::on_data_rx(int id, std::string_view data, connection_info cnxi)
+{
+    m_mainsrv->on_data_rx(info(), id, data, cnxi);
 }

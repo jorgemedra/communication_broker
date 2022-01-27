@@ -22,9 +22,35 @@ using namespace boost::beast::websocket;
 // using header_long_type = std::list<std::pair<std::string, long>>;
  using header_type = std::list<stomp_header>;
 
-void stomp_sever::on_server_start()
+std::shared_ptr<stomp_sever> stomp_sever::create(int tcp_port, int ws_port)
 {
-    std::cout << "[stomp_sever] Server has started\n";
+    std::shared_ptr<stomp_sever> ptr = std::shared_ptr<stomp_sever>(new stomp_sever());
+    ptr->create_internal_servers(tcp_port, ws_port);
+    return ptr;
+}
+
+stomp_sever::stomp_sever() : b_started{false}
+{
+    m_session_mng = stomp_session_manager::instance();
+    m_subs_mng = stomp_subscription_manager::instance();
+    m_subs_mng->link_call_back_functions(std::bind(&stomp_sever::on_subscription_task_ends,
+                                                this,
+                                                std::placeholders::_1,
+                                                std::placeholders::_2,
+                                                std::placeholders::_3));
+
+     //m_wsserver = jomt::wsserver::create(get(), ws_port);
+}
+
+void stomp_sever::create_internal_servers(int tcp_port, int ws_port)
+{
+    m_wsserver = jomt::wsserver::create(get(), ws_port);
+    //TODO: Create TCP Server
+}
+
+std::shared_ptr<stomp_sever> stomp_sever::get()
+{
+    return shared_from_this();
 }
 
 void stomp_sever::set_secret_keys(  std::string app_key, std::string agent_key, std::string super_agent_key, 
@@ -37,28 +63,54 @@ void stomp_sever::set_secret_keys(  std::string app_key, std::string agent_key, 
     m_secret_keys.sk_admin = adm_key;
 }
 
-void stomp_sever::on_server_stop(const boost::system::error_code &ec)
+void stomp_sever::set_ssl_options_on_ws(std::string cert_path, std::string key_path, std::string pem_path)
 {
-    m_subs_mng->stop();
-    if(ec)
-        std::cout << "[stomp_sever] The server has been stoped with error: (" << ec.value()<< ")[" << ec.message() << "].\n";
-    else
-        std::cout << "[stomp_sever] The server has benn stoped.\n";
+    m_wsserver->set_ssl_options(cert_path, key_path, pem_path);
 }
 
-void stomp_sever::on_new_connection(int id, jomt::connection_info cnxi)
+void stomp_sever::start()
+{
+    if(!b_started)
+    {
+        m_wsserver->start();
+    }
+}
+
+void stomp_sever::on_server_start(server_info srvi)
+{
+    b_started = true;
+    std::cout << "[stomp_sever] Server has started: " << srvi  << "\n";
+}
+
+void stomp_sever::stop()
+{
+    if(b_started)
+        m_wsserver->stop();
+}
+
+void stomp_sever::on_server_stop(server_info srvi, const boost::system::error_code &ec)
+{
+    b_started = false;
+    m_subs_mng->stop();
+    if(ec)
+        std::cout << "[stomp_sever] " << srvi << ". The server has bennstoped with error: (" << ec.value() << ")[" << ec.message() << "].\n";
+    else
+        std::cout << "[stomp_sever] " << srvi << ". The server has benn stoped.\n";
+}
+
+void stomp_sever::on_new_connection(server_info srvi, int id, jomt::connection_info cnxi)
 {
     std::cout << "[stomp_sever] on_new_connection with id [" << id << "]:\n";
     if(cnxi.type == jomt::WEBSOCKET)
     {
-        auto [bexist, cnx] = wsserver::fetch_cnx(cnxi.id);
+        auto [bexist, cnx] = m_wsserver->fetch_cnx(cnxi.id);
         if (bexist)
             cnx->run();
     }
     
 }
 
-void stomp_sever::on_data_rx(int id, std::string_view data, jomt::connection_info cnxi)
+void stomp_sever::on_data_rx(server_info srvi, int id, std::string_view data, jomt::connection_info cnxi)
 {
     stomp_errors ec;
     stomp_parser parser;
@@ -83,7 +135,7 @@ void stomp_sever::on_data_rx(int id, std::string_view data, jomt::connection_inf
     proccess_message(msg, cnxi);
 }
 
-void stomp_sever::on_connection_end(int id, const boost::system::error_code &ec)
+void stomp_sever::on_connection_end(server_info srvi, int id, const boost::system::error_code &ec)
 {
     //std::cout << "[stomp_sever] On CNX Closed [" << id << "] Reason: (" << ec.value()<< ")" <<  ec.message() << ".\n";
     

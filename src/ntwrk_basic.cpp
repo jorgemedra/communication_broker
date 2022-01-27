@@ -1,4 +1,4 @@
-#include "ntwrk.h"
+#include "ntwrk.hpp"
 #include <iostream>
 #include <thread>
 
@@ -65,4 +65,24 @@ std::ostream &jomt::operator<<(std::ostream &out, const jomt::connection_info &c
 
     return out << "ID[" << cnx.id << "]: Type: [" << type << "] "
                << "Address: [" << cnx.address << ":" << cnx.port << "]";
+}
+
+std::ostream &jomt::operator<<(std::ostream &out, const jomt::server_info &srvi)
+{
+    std::string type{};
+    // socket_type stp = ;
+    switch (srvi.type)
+    {
+    case socket_type::SOCKET_IP:
+        type = "TCP/IP";
+        break;
+    case socket_type::WEBSOCKET:
+        type = "WEBSOCKET";
+        break;
+    default:
+        type = "UNKWON";
+        break;
+    };
+
+    return out << "Server Type: [" << type << "] on Port: [" << srvi.port << "]";
 }

@@ -63,7 +63,8 @@ int main(int argc, char* argv[])
     
     //print_utc_time(); 
     
-    int scktPort = std::stoi(argv[1]);
+    int tcpPort = std::stoi(argv[1]);
+    int wsPort = std::stoi(argv[2]);
 
     /*
     jomt::ScktServer sckSrv(scktPort);
@@ -74,14 +75,15 @@ int main(int argc, char* argv[])
     std::string key{"./cert/dummy.key"};
     std::string pem{"./cert/dhdummy.pem"};
 
-    std::shared_ptr<jomt::stomp::stomp_sever> stompsrv(new jomt::stomp::stomp_sever(scktPort));
+    //std::shared_ptr<jomt::stomp::stomp_sever> stompsrv(new jomt::stomp::stomp_sever(scktPort));
+    auto stompsrv = jomt::stomp::stomp_sever::create(tcpPort, wsPort);
     // Set all the secret key into the stomp_server
     stompsrv->set_secret_keys("my_app_secret_key", "my_agent_secret_key",
                             "my_super_agent_secret_key", "my_service_secret_key",
                             "my_admin_secret_key");
 
     // This method activate the SSL Mode on the stomp server.
-    stompsrv->set_ssl_options(crt, key, pem);  
+    stompsrv->set_ssl_options_on_ws(crt, key, pem);
     stompsrv->start();
 
     std::cout
@@ -103,4 +105,3 @@ int main(int argc, char* argv[])
     std::cout << "-- END --" << std::endl;
     return 0;
 }
-

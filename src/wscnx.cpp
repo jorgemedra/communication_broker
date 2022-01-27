@@ -1,6 +1,7 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <mutex>
 #include <string_view>
 #include <boost/beast.hpp>
 #include <boost/beast/ssl.hpp>
@@ -199,58 +200,60 @@ void wscnx::write(std::string_view data, bool close_on_write)
 
 void wscnx::write_tcp(std::string_view data, bool close_on_write)
 {
-    if (!m_ws->is_open()) return;
-    m_ws->async_write(net::buffer(data),
-                      [self{shared_from_this()}, close_on_write](const boost::system::error_code &ec, std::size_t bytes_transferred)
-                      {
-                          boost::ignore_unused(bytes_transferred);
+    std::unique_lock<std::mutex> u_lock(m_mtx_write);
+    if (!m_ws->is_open())
+        return;
+    boost::system::error_code ec;
+    auto bytes_transferred = m_ws->write(net::buffer(data), ec);
 
-                          // This indicates that the session was closed
-                          if (ec == websocket::error::closed)
-                          {
-                              // std::cout << "[wscnx::[" << self->m_id << "]::on wirite] Error: " << ec.message() << "\n";
-                              self->close(beast::websocket::close_code::normal, ec);
-                              return;
-                          }
+    boost::ignore_unused(bytes_transferred);
 
-                          if (ec)
-                          {
-                              // std::cout << "[wscnx::[" << self->m_id << "]::on wirite] Error READING: " << ec.message() << "\n";
-                              self->close(beast::websocket::close_code::abnormal, ec);
-                              return;
-                          }
+    // This indicates that the session was closed
+    if (ec == websocket::error::closed)
+    {
+        // std::cout << "[wscnx::[" << self->m_id << "]::on wirite] Error: " << ec.message() << "\n";
+        close(beast::websocket::close_code::normal, ec);
+        return;
+    }
 
-                          if (close_on_write)
-                              self->close(beast::websocket::close_code::normal, ec);
-                      });
+    if (ec)
+    {
+        // std::cout << "[wscnx::[" << self->m_id << "]::on wirite] Error READING: " << ec.message() << "\n";
+        close(beast::websocket::close_code::abnormal, ec);
+        return;
+    }
+
+    if (close_on_write)
+        close(beast::websocket::close_code::normal, ec);
+                      
     // std::cout << "[wscnx::[" << self->m_id << "]::on wirite send [" << bytes_transferred << "] bytes .\n"; });
 }
 
 void wscnx::write_ssl(std::string_view data, bool close_on_write)
 {
-    if(!m_wss->is_open()) return;
-    m_wss->async_write(net::buffer(data),
-                      [self{shared_from_this()}, close_on_write](const boost::system::error_code &ec, std::size_t bytes_transferred)
-                      {
-                          boost::ignore_unused(bytes_transferred);
+    std::unique_lock<std::mutex> u_lock(m_mtx_write);
+    if (!m_wss->is_open())
+        return;
+    boost::system::error_code ec;
+    auto bytes_transferred = m_wss->write(net::buffer(data), ec);
 
-                          // This indicates that the session was closed
-                          if (ec == websocket::error::closed)
-                          {
-                              // std::cout << "[wscnx::[" << self->m_id << "]::on wirite] Error: " << ec.message() << "\n";
-                              self->close(beast::websocket::close_code::normal, ec);
-                              return;
-                          }
+    boost::ignore_unused(bytes_transferred);
 
-                          if (ec)
-                          {
-                              // std::cout << "[wscnx::[" << self->m_id << "]::on wirite] Error READING: " << ec.message() << "\n";
-                              self->close(beast::websocket::close_code::abnormal, ec);
-                              return;
-                          }
+    // This indicates that the session was closed
+    if (ec == websocket::error::closed)
+    {
+        // std::cout << "[wscnx::[" << self->m_id << "]::on wirite] Error: " << ec.message() << "\n";
+        close(beast::websocket::close_code::normal, ec);
+        return;
+    }
 
-                          if (close_on_write) 
-                            self->close(beast::websocket::close_code::normal, ec);
-                      });
-    // std::cout << "[wscnx::[" << self->m_id << "]::on wirite send [" << bytes_transferred << "] bytes .\n"; });
+    if (ec)
+    {
+        // std::cout << "[wscnx::[" << self->m_id << "]::on wirite] Error READING: " << ec.message() << "\n";
+        close(beast::websocket::close_code::abnormal, ec);
+        return;
+    }
+
+    if (close_on_write)
+        close(beast::websocket::close_code::normal, ec);
 }
