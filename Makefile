@@ -13,6 +13,8 @@ OBJ_FLS = 		$(OBJ_DIR)/main.o \
 				$(OBJ_DIR)/ntwrk_basic.o \
 				$(OBJ_DIR)/wsserver.o \
 				$(OBJ_DIR)/wscnx.o \
+				$(OBJ_DIR)/tcpserver.o \
+				$(OBJ_DIR)/tcpcnx.o \
 				$(OBJ_DIR)/stomp_server.o \
 				$(OBJ_DIR)/stomp_server_proccess.o \
 				$(OBJ_DIR)/stomp_server_send.o \

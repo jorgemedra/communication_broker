@@ -48,6 +48,11 @@ class stomp_heders
     static HDR_CONT_TYPE = "content-type";  
 }//class stomp_heders
 
+class stomp_error
+{
+    static OK = "OK";
+}
+
 class STOMPMessage
 {
     constructor()
@@ -62,12 +67,14 @@ class STOMPMessage
 }//class STOMPMessage
 
 
-class STOMPClient {
+class COM_BROKER_Client {
 
     constructor(idClient, wsurl){
         self = this;
-        this.LF = '\x0A';
-        this.NULL = '\x00';
+        //this.LF = '\x0A';
+        this.LF = '\n';
+        //this.NULL = '\x00';
+        this.NULL = '\0';
 
         this.cur_session = "";
         this.cur_destination = "";
@@ -91,6 +98,7 @@ class STOMPClient {
         this.fb_onClosed = null;
         this.fb_onError = null;
         this.fb_onMessage = null;
+        this.fb_onACK = null;
 
     };
 
@@ -102,12 +110,13 @@ class STOMPClient {
         return this.id_client;
     }
 
-    linkEvents(fb_onOpen, fb_onClosed, fb_onError, fb_onMessage)
+    linkEvents(fb_onOpen, fb_onClosed, fb_onError, fb_onMessage, fb_onACK)
     {
         this.fb_onOpen = fb_onOpen;
         this.fb_onClosed = fb_onClosed;
         this.fb_onError = fb_onError;
         this.fb_onMessage = fb_onMessage;
+        this.fb_onACK = fb_onACK;
     }
 
     /* Log Events */
@@ -240,18 +249,37 @@ class STOMPClient {
                     + e.data + 
                     "\n------------------------------------------------------------]");
         }
-
+        
         var msg = self._parseMessage(e.data);
 
         if(msg.Command == "CONNECTED")
         {
             self.cur_session = msg.Headers[stomp_heders.HDR_SESSION_ID];
             self.cur_destination = msg.Headers[stomp_heders.HDR_DEST];
-            self.fb_onOpen(this.cur_session);
+            var profile = msg.Headers[stomp_heders.HDR_PROF_DESC];
+            var cnx_id = msg.Headers[stomp_heders.HDR_CNX_ID];
+            self.fb_onOpen(self.cur_session, self.cur_destination, profile, cnx_id);
         }
         else if(msg.Command == "MESSAGE")
         {
-            self.fb_onMessage(msg.Headers, msg.Body);
+            var origin = msg.Headers[stomp_heders.HDR_ORIGIN];
+            var destination = msg.Headers[stomp_heders.HDR_DEST];
+            var content_type = msg.Headers[stomp_heders.HDR_CONT_TYPE];
+            self.fb_onMessage(origin, destination, content_type, msg.Body);
+        }
+        else if(msg.Command == "ERROR" || msg.Command == "ACK")
+        {
+            var data_error = msg.Headers[stomp_heders.HDR_ERROR_DESC];
+            if(data_error != stomp_error.OK)
+            {
+                self.fb_onError(data_error);
+            }
+            else
+            {
+                
+                self.fb_onACK(data_error + "\n" + msg.Body);
+            }
+
         }
         
     }
@@ -377,21 +405,19 @@ class STOMPClient {
         this.ws = null;
     }
     
-    //suscribe(id, destiny)
-    suscribe(destiny)
+    suscribe(destination, use_regex)
     {
         const headers = [
             stomp_heders.HDR_TRANSACTION + ":" + this.NextId(),
             stomp_heders.HDR_SESSION_ID + ":" + this.cur_session,
-            stomp_heders.HDR_DEST_TYPE + ":1",
-            stomp_heders.HDR_DEST + ":" + destiny
+            stomp_heders.HDR_DEST_TYPE + ":" + use_regex,
+            stomp_heders.HDR_DEST + ":" + destination
         ];
 
         var data = this.buildSTOMPMessage(stomp_commands.CMD_SUBSCRIBE, headers, "");
         this._sendraw(data);
     }
 
-    //unsuscribe(id)
     unsuscribe()
     {
         const headers = [
@@ -403,13 +429,13 @@ class STOMPClient {
         this._sendraw(data);
     }
 
-    sendText(destiny, body)
+    sendText(destiny, body, content_type = "text/plain")
     {
         const headers = [
             stomp_heders.HDR_TRANSACTION + ":" + this.NextId(),
             stomp_heders.HDR_SESSION_ID + ":" + this.cur_session,
             stomp_heders.HDR_DEST + ":" + destiny,
-            stomp_heders.HDR_CONT_TYPE + ": text/plain",
+            stomp_heders.HDR_CONT_TYPE + ":" + content_type,
             stomp_heders.HDR_CONT_LENGHT + ": " + body.length
         ];
 

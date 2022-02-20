@@ -1,15 +1,27 @@
 
 var amq = null;
 
+// Secret App Key
+var __app_key__ = "my_app_secret_key"
+
+// Secret Profile Keys
+var __agent_prof_key__ = "my_agent_secret_key"
+var __sagent_prof_key__ = "my_super_agent_secret_key"
+var __service_prof_key__ = "my_service_secret_key"
+var __admin_prof_key__ = "my_admin_secret_key"
+
 function iniForm()
 {   
     $("#btnConnect").show();
     $("#btnClose").hide();
+    $("#div-logged").hide();
+
 
     $("#btnSuscribe").hide();
     $("#btnUnSuscribe").hide();
-
     $("#chkTopic").prop("checked", false);
+
+    
 }
 
 /**********************************************************
@@ -18,21 +30,34 @@ function iniForm()
 
 function OpenConnection()
 {
-    console.log("Opening Connection.");
+    WriteLog("Opening Connection.");
+
     var url = $("#txtURL").val();
     var usr = $("#txtUser").val();
-    var pwd = $("#txtPassword").val();
+    var prof = $("#opt_prof:checked").val();
+    var pwd = "";
     
+    if(prof == "agn")
+        pwd = __agent_prof_key__;
+    else if(prof == "sagn")
+        pwd = __sagent_prof_key__;
+    else if(prof == "srv")
+        pwd = __service_prof_key__;
+    else if(prof == "adm")
+        pwd = __admin_prof_key__;
+
+
     $("#btnConnect").hide();
     
-    amq =new STOMPClient("STOMP CLT-1", url);
+    amq =new COM_BROKER_Client("CLT-1", url);
     amq.activeDebug();
-    amq.linkEvents(OnConnected, onClosed, onError, onMessage);
+    amq.linkEvents(OnConnected, onClosed, onError, onMessage, onACK);
     amq.connectToServer(usr, pwd);
 }
 
 function CloseConnection()
-{   console.log("Closing Connection.");
+{
+    WriteLog("Closing Connection.");
     amq.diconnectToServer();
 }
 
@@ -56,53 +81,61 @@ function OnType()
 
 function Suscribe()
 {
-    console.log("Suscribing.");
-    //$("#txtID").val(amq.NextId());
-    // var isTopic = $("#chkTopic").prop("checked");
-    //var id = amq.NextId(); //$("#txtID").val();
-    // var susId = $("#txtDestSuscribe").val();
-
-    //var type = isTopic ? "/topic/" : "/queue/";
-    //var dest = type + susId;
-    // var dest = susId;
+    WriteLog("Suscribing.");
+    var temp = $("#chkRegex").prop("checked");
+    var use_regextype = temp ? "1" : "0";
     var dest = $("#txtDestSuscribe").val();
-    amq.suscribe(dest);
-
+    amq.suscribe(dest, use_regextype);
 }
 
 function Send()
 {
-    console.log("Sending.");
-    //$("#txtID").val(amq.NextId());
-    //var isTopic = $("#chkTopic").prop("checked");
-    // var susId = $("#txtDestiny").val();
-
-    //var type = isTopic ? "/topic/" : "/queue/";
-    //var dest = type + susId;
-    // var dest = susId;
-
-    var dest = $("#txtDestiny").val();
+    WriteLog("Sending.");
+    var dest = $("#txtDestination").val();
     var msg = $("#txtTxMessage").val();
+    var content_type = "text/plain";
 
-    amq.sendText(dest, msg);
+    amq.sendText(dest, msg, content_type);
+}
+
+function Clear()
+{
+    $("#txtRxMessage").val("");
+}
+
+function ClearLogs()
+{
+    $("#txtLogs").val("Logs...");
+}
+
+function WriteLog(logmessage)
+{
+    var log = $("#txtLogs").val();
+    $("#txtLogs").val(log + "\n" + logmessage + "\n");
 }
 
 function Unsuscribe()
 {
-    console.log("Unscribing.");    
-    // var id = $("#txtID").val();
+    WriteLog("Unscribing.");
     amq.unsuscribe();
 }
 
 /**********************************************************
 * EVENTS
 **********************************************************/
-function OnConnected(destination_id)
+function OnConnected(session_id, destination_id, profile, cnx_id)
 {
-    console.log("Connection opened.");
+    WriteLog("Connection opened.");
 
     $("#btnConnect").hide();
     $("#btnClose").show();
+
+    $("#div-logged").show();
+
+    $("#session_id").text(session_id);
+    $("#destination_id").text(destination_id);
+    $("#profile").text(profile);
+    $("#cnx_id").text(cnx_id);
 
     $("#btnSuscribe").show();
     $("#btnUnSuscribe").show();
@@ -110,30 +143,40 @@ function OnConnected(destination_id)
     $("#txtDestSuscribe").val(destination_id);
 }
 
-
 function onClosed(code, reason)
 {
-    console.log("Connection closed by Code(" + code + "): " + reason);
+    WriteLog("Connection closed by Code(" + code + "): " + reason);
+
     $("#btnConnect").show();
     $("#btnClose").hide();
+    $("#div-logged").hide();
+
+    $("#destination_id").text("");
 
     $("#btnSuscribe").hide();
     $("#btnUnSuscribe").hide();
     amq = null;
 }
 
-function onError(e)
+function onError(error)
 {
-    console.error("!!!!" + e);
+    WriteLog("ON ERROR: " + error);
 }
 
-function onMessage(headers, data)
+function onMessage(origin, destination, content_type, payload)
 {   
-    console.log("OnMessage: HEADERS: " + headers);
-    //console.log("OnMessage: DATA: " + data);
+    hdrs_info = "On Message:\n";
+    hdrs_info += "\tOrigin:" + origin + "\n" ;
+    hdrs_info += "\tDestination:" + destination + "\n" ;
+    hdrs_info += "\tContent Type:" + content_type + "\n" ;
+
+    WriteLog("On Message: HEADERS: " + hdrs_info);
 
     var info = $("#txtRxMessage").val(); 
+    $("#txtRxMessage").val(info + "--------BEGIN MESSAGE--------\n" + payload + "\n--------END MESSAGE--------\n");
+}
 
-    $("#txtRxMessage").val(info + "--------BEGIN MESSAGE--------\n" + data + "\n--------END MESSAGE--------\n");
-
+function onACK(data)
+{
+    WriteLog("ON ACK: " + data);
 }

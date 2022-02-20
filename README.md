@@ -3,7 +3,7 @@
 
 # TODO List
 
-- [x]  Connect Diagram.
+- [x] Connect Diagram.
 - [x] Disconnect Diagram.
 - [x] Subscribe Diagram.
 - [x] Unsubscribe Diagram.
@@ -27,9 +27,11 @@
 - [x] Message
 - [x] Send / ACK
 - [x] ACK FOR SEND
-- [ ] Finish JS API, Left proccess the remain messages.
-- [ ] Implements the TCP Server.
-
+- [x] Finish JS API, Left proccess the remain messages.
+- [x] Implements the TCP Server.
+- [ ] BUG: SSL on TCP Server doesn't work.
+- [ ] Run as a Daemon or Console mode.
+- [ ] Add logs with Boost Log api... or mine (as more control as better).
 
 
 # Overview
@@ -142,9 +144,11 @@ My Dummy data to create a cert are:
 + Locality Name: CDMX
 + Organization Name: JOMT
 + Organization Unit Name: JOMT
-+ Common Name: JOMT
++ Common Name: MacBook-Pro-de-Jorge.local
 + Email Address: anyaddress@mail.com
 
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365 -subj '/CN=localhost'
 
 ``` cmd
 openssl req -x509 -newkey rsa:4096 -keyout dummy_key.pem -out dummy.pem -sha256 -days 365
@@ -154,7 +158,7 @@ openssl x509 -outform der -in dummy.pem -out dummy.crt
 
 1. Generate a private key
 ```cmd
-openssl genrsa -des3 -out dummy.key 1024
+openssl genrsa -des3 -out dummy.key 2048
 ```
 
 2. Generate Certificate signing request
@@ -165,6 +169,7 @@ openssl req -new -key dummy.key -out dummy.csr
 3. Sign certificate with private key
 ```cmd
 openssl x509 -req -days 3650 -in dummy.csr -signkey dummy.key -out dummy.crt
+openssl x509 -signkey dummy.key -in dummy.csr -req -days 365 -out dummy.crt
 ```
 
 4. Generate dhparam file

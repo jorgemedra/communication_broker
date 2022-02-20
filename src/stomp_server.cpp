@@ -45,7 +45,7 @@ stomp_sever::stomp_sever() : b_started{false}
 void stomp_sever::create_internal_servers(int tcp_port, int ws_port)
 {
     m_wsserver = jomt::wsserver::create(get(), ws_port);
-    //TODO: Create TCP Server
+    m_tcpserver = jomt::tcpserver::create(get(), tcp_port);
 }
 
 std::shared_ptr<stomp_sever> stomp_sever::get()
@@ -63,9 +63,14 @@ void stomp_sever::set_secret_keys(  std::string app_key, std::string agent_key, 
     m_secret_keys.sk_admin = adm_key;
 }
 
-void stomp_sever::set_ssl_options_on_ws(std::string cert_path, std::string key_path, std::string pem_path)
+void stomp_sever::set_ssl_options_on_ws(std::string cert_path, std::string key_path, std::string dh_path)
 {
-    m_wsserver->set_ssl_options(cert_path, key_path, pem_path);
+    m_wsserver->set_ssl_options(cert_path, key_path, dh_path);
+}
+
+void stomp_sever::set_ssl_options_on_tcp(std::string cert_path, std::string key_path, std::string dh_path)
+{
+    m_tcpserver->set_ssl_options(cert_path, key_path, dh_path);
 }
 
 void stomp_sever::start()
@@ -73,6 +78,7 @@ void stomp_sever::start()
     if(!b_started)
     {
         m_wsserver->start();
+        m_tcpserver->start();
     }
 }
 
@@ -85,7 +91,10 @@ void stomp_sever::on_server_start(server_info srvi)
 void stomp_sever::stop()
 {
     if(b_started)
+    {
         m_wsserver->stop();
+        m_tcpserver->stop();
+    }
 }
 
 void stomp_sever::on_server_stop(server_info srvi, const boost::system::error_code &ec)
@@ -98,31 +107,41 @@ void stomp_sever::on_server_stop(server_info srvi, const boost::system::error_co
         std::cout << "[stomp_sever] " << srvi << ". The server has benn stoped.\n";
 }
 
-void stomp_sever::on_new_connection(server_info srvi, int id, jomt::connection_info cnxi)
+void stomp_sever::on_new_connection(server_info srvi, jomt::connection_info cnxi)
 {
-    std::cout << "[stomp_sever] on_new_connection with id [" << id << "]:\n";
+    std::cout << "[stomp_sever] on_new_connection:\n"
+              << "\tServer[" << srvi << "]\n"
+              << "\tConnection: " << cnxi << "\n";
+
     if(cnxi.type == jomt::WEBSOCKET)
     {
         auto [bexist, cnx] = m_wsserver->fetch_cnx(cnxi.id);
         if (bexist)
             cnx->run();
     }
+    else if(cnxi.type == jomt::SOCKET_IP)
+    {
+        auto [bexist, cnx] = m_tcpserver->fetch_cnx(cnxi.id);
+        if (bexist)
+            cnx->run();
+    }
     
 }
 
-void stomp_sever::on_data_rx(server_info srvi, int id, std::string_view data, jomt::connection_info cnxi)
+void stomp_sever::on_data_rx(server_info srvi, std::string_view data, jomt::connection_info cnxi)
 {
     stomp_errors ec;
     stomp_parser parser;
     std::shared_ptr<stomp_message> msg = parser.parser_message(data, ec);
 
+    std::cout << "on_data_rx: cnxi:\n" << cnxi << std::endl;
 
     if(ec != stomp_errors::OK)
     {
         std::stringstream out;
-        out << "CNX [" << id << "] INVALID MESSAGE: CAUSE: " << err_description(ec);
+        out << "CNX [" << cnxi.id << "] INVALID MESSAGE: CAUSE: " << err_description(ec);
 
-        std::cout << "WARN CNX [" << id << "] INVALID MESSAGE:"
+        std::cout << "WARN CNX [" << cnxi.id << "] INVALID MESSAGE:"
                   << "\n\tError Description: " << err_description(ec)
                   << "\n\tRemote Source:[" << cnxi.address << ":" << cnxi.port << "]"
                   << "\n[---------------------- BEGIN WRONG MESSAGE ----------------------------------]\n"
@@ -135,20 +154,20 @@ void stomp_sever::on_data_rx(server_info srvi, int id, std::string_view data, jo
     proccess_message(msg, cnxi);
 }
 
-void stomp_sever::on_connection_end(server_info srvi, int id, const boost::system::error_code &ec)
+void stomp_sever::on_connection_end(server_info srvi, connection_info cnxi, const boost::system::error_code &ec)
 {
-    //std::cout << "[stomp_sever] On CNX Closed [" << id << "] Reason: (" << ec.value()<< ")" <<  ec.message() << ".\n";
-    
-    auto session = m_session_mng->fetch_session_by_cnx(id);
+    // std::cout << "[stomp_sever] On CNX Closed [" << cnxi.id << "] Reason: (" << ec.value()<< ")" <<  ec.message() << ".\n";
 
-    std::cout << "[stomp_sever] On CNX Closed [" << id << "] Reason: (" << ec.value() << ")" << ec.message() << ".\n"
-              << "from session: " << stomp_session::show_info(session);
+    auto session = m_session_mng->fetch_session_by_cnx(cnxi.id);
+
+    // std::cout << "[stomp_sever] On CNX Closed [" << cnxi.id << "] Reason: (" << ec.value() << ")" << ec.message() << ".\n"
+    //           << "from session: " << stomp_session::show_info(session);
 
     for (auto it = session->cnxs.begin(); it != session->cnxs.end(); it++)
     {
-        if (it->id == id)
+        if (it->id == cnxi.id)
         {
-            std::cout << "[stomp_sever]  On CNX Closed [" << id << "] Unliking Connection: "
+            std::cout << "[stomp_sever]  On CNX Closed [" << cnxi.id << "] Unliking Connection: "
                       << *it << "\n";
             session->cnxs.erase(it);
             break;
@@ -161,12 +180,11 @@ void stomp_sever::on_connection_end(server_info srvi, int id, const boost::syste
         //if (session != m_session_mng->empty_session())
         m_subs_mng->async_init_unsubscription(session, "cnx-end", false);
         
-        //2. unregistrer session    
-        m_session_mng->unregister_session(id);
+        //2. unregistrer session
+        m_session_mng->unregister_session(cnxi.id);
     }
     else
-        std::cout << "[stomp_sever]  On CNX Closed New Session State[" << id << "]: " << stomp_session::show_info(session);
-
+        std::cout << "[stomp_sever]  On CNX Closed New Session State[" << cnxi.id << "]: " << stomp_session::show_info(session);
 }
 
 std::vector<std::string> stomp_sever::fetch_header(std::shared_ptr<stomp_message> msg,

@@ -2,6 +2,7 @@
 #define IMPP_WSCNX_HPP
 
 #include "ws.hpp"
+#include "tcp.hpp"
 #include "stomp_session.hpp"
 #include "stomp_protocol.hpp"
 #include "stomp_subscription.hpp"
@@ -19,6 +20,7 @@ namespace jomt::stomp
         bool b_started;
         
         std::shared_ptr<jomt::wsserver> m_wsserver;
+        std::shared_ptr<jomt::tcpserver> m_tcpserver;
         std::shared_ptr<stomp_session_manager> m_session_mng;
         std::shared_ptr<jomt::stomp::stomp_subscription_manager> m_subs_mng;
         stomp_profile_keys m_secret_keys;
@@ -55,7 +57,8 @@ namespace jomt::stomp
         void set_secret_keys(std::string app_key, std::string agent_key, std::string super_agent_key,
                                 std::string ervice_key, std::string adm_key);
 
-        void set_ssl_options_on_ws(std::string cert_path, std::string key_path, std::string pem_path);
+        void set_ssl_options_on_ws(std::string cert_path, std::string key_path, std::string dh_path);
+        void set_ssl_options_on_tcp(std::string cert_path, std::string key_path, std::string dh_path);
 
         void start();
         void stop();
@@ -63,9 +66,9 @@ namespace jomt::stomp
         // Inherited methods from WSServer and TCPServer
         void on_server_start(server_info srvi);
         void on_server_stop(server_info srvi, const boost::system::error_code &ec);
-        void on_new_connection(server_info srvi, int id, connection_info cnxi);
-        void on_connection_end(server_info srvi, int id, const boost::system::error_code &ec);
-        void on_data_rx(server_info srvi, int id, std::string_view data, connection_info cnxi);
+        void on_new_connection(server_info srvi, connection_info cnxi);
+        void on_connection_end(server_info srvi, connection_info cnxi, const boost::system::error_code &ec);
+        void on_data_rx(server_info srvi, std::string_view data, connection_info cnxi);
 
         // Declaring the CallBack function that jomt::stomp::stomp_subscription_manager requieres
         void on_subscription_task_ends(std::shared_ptr<stomp_subscription_task> task,

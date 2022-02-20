@@ -4,102 +4,115 @@
 #ifndef TCP_HPP
 #define TCP_HPP
 
+#include "ntwrk.hpp"
+#include <thread>
+#include <mutex>
+#include <memory>
+#include <iostream>
+#include <vector>
+#include <set>
+#include <mutex>
+#include <cassert>
+#include <type_traits>
+#include <unordered_map>
+#include <stack>
+#include <string_view>
+#include <boost/asio.hpp>
+#include <boost/beast/ssl.hpp>
+
 namespace jomt
 {
     class tcpcnx;
     class tcpserver;
 
-    class tcpcnx : public std::enable_shared_from_this<wscnx>, public jomt::connection
+    class tcpcnx : public std::enable_shared_from_this<tcpcnx>, public jomt::connection
     {
-        using t_ws_tcp = boost::beast::websocket::stream<boost::beast::tcp_stream>;
-        using t_ws_ssl = boost::beast::websocket::stream<boost::beast::ssl_stream<boost::beast::tcp_stream>>;
+        static const int HEADER_SIZE = 5;
+        using t_sck = boost::asio::ip::tcp::socket;
+        using t_sck_ssl = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>;
+        
+        std::weak_ptr<tcpserver> m_server;
+        boost::asio::streambuf m_rx_buffer;
+        boost::asio::streambuf m_tx_buffer;
+        std::vector<char> m_rx_b;
+        std::mutex m_mtx_write;
 
-        std::weak_ptr<wsserver> m_server;
-        boost::beast::flat_buffer m_rx_buffer;
-        boost::beast::flat_buffer m_tx_buffer;
+        bool b_w_header;
+        size_t m_payload_size;
 
-        std::unique_ptr<t_ws_tcp> m_ws;
-        std::unique_ptr<t_ws_ssl> m_wss;
+        std::unique_ptr<t_sck> m_sck;
+        std::unique_ptr<t_sck_ssl> m_ssck;
 
         void handshake_ssl();
 
-        void accept_tcp();
-        void accept_ssl();
+        void read();
 
-        void read_tcp();
-        void read_ssl();
-
-        void write_tcp(std::string_view data, bool close_on_write);
-        void write_ssl(std::string_view data, bool close_on_write);
+        // void write_tcp(std::string_view data, bool close_on_write);
+        // void write_ssl(std::string_view data, bool close_on_write);
 
     public:
-        wscnx(short id, boost::asio::ip::tcp::socket &&sck,
-               std::shared_ptr<wsserver> server) :  m_server{server}, 
-                                                    m_ws(new t_ws_tcp(std::move(sck)))
-        {
-            is_ssl = false;
-            connection::type(jomt::socket_type::WEBSOCKET);
-            connection::id(id);
-        }
+        tcpcnx(t_sck &&sck, std::shared_ptr<tcpserver> server);
 
-        tcpcnx(short id, boost::asio::ip::tcp::socket &&sck, boost::asio::ssl::context &cnx,
-               std::shared_ptr<wsserver> server) : m_server{server},
-                                                   m_wss(new t_ws_ssl(std::move(sck), cnx))
-        {
-            is_ssl = true;
-            connection::type(jomt::socket_type::WEBSOCKET);
-            connection::id(id);
-        }
-
+        tcpcnx(t_sck &&sck, boost::asio::ssl::context &cnx, std::shared_ptr<tcpserver> server);
         ~tcpcnx();
 
         void run();
-        void close(boost::beast::websocket::close_code reason, const boost::system::error_code &ec);
-        void write(std::string_view data, bool close_on_write=false);
+        void close(const boost::system::error_code &ec);
+        void write(std::string_view data, bool close_on_write = false);
     };
 
-    class tcpserver : public std::enable_shared_from_this<wsserver>, public ntwrk_basic
+    class tcpserver : public std::enable_shared_from_this<tcpserver>, public ntwrk_basic
     {
         //TODO: Change it by a MACRO on Compiler time
-        static const int MAX_CONNECTIONS_TCP = 1024;
+        static const int MAX_CONNECTIONS_TCP = 100;
 
+        std::shared_ptr<jomt::basic_server> m_mainsrv;
         int m_port;
         boost::asio::io_context m_ioc;
         boost::asio::ssl::context m_ssl_ioc;
         boost::asio::ip::tcp::acceptor m_acceptor;
-        std::unordered_map<int, std::shared_ptr<wscnx>> m_cnxs;
+        std::unordered_map<int, std::shared_ptr<tcpcnx>> m_cnxs;
         std::atomic<int> m_counter;
-        std::stack<int> m_stck_ids;
-        std::mutex m_lockcnx;
+        // std::stack<int> m_stck_ids;
+        std::mutex m_lockcnx;        
         bool m_is_ssl;
+
         void wait_for_connections();
 
-        void initIdQueue(int max_cnxs);
-        std::pair<int, std::shared_ptr<tcpcnx>> regiter_tcpcnx(boost::asio::ip::tcp::socket &&socket);
+        // void initIdQueue(int max_cnxs);
+        std::pair<int, connection_info> regiter_tcpcnx(boost::asio::ip::tcp::socket &&socket);
         bool unregiter_tcpcnx(int id);
 
+        tcpserver(std::shared_ptr<jomt::basic_server> server, int bind_port,
+                  int max_cnxs = tcpserver::MAX_CONNECTIONS_TCP,
+                  boost::asio::ssl::context::method mtd= boost::asio::ssl::context::tlsv12);
+
     public:
-        tcpserver(int bind_port,
-                  int max_cnxs = tcpserver::MAX_CONNECTIONS,
-                  boost::asio::ssl::context::method mtd = boost::asio::ssl::context::sslv23_server);
+        static std::shared_ptr<tcpserver> create(std::shared_ptr<jomt::basic_server> server, int bind_port,
+                                                 int max_cnxs = tcpserver::MAX_CONNECTIONS_TCP,
+                                                 boost::asio::ssl::context::method mtd = boost::asio::ssl::context::tlsv12)
+        {
+            return std::shared_ptr<tcpserver>(new tcpserver(server, bind_port, max_cnxs, mtd));
+        }
 
-        void set_ssl_options(std::string cert_path, std::string key_path, std::string pem_path);
+        std::shared_ptr<tcpserver> get()
+        {
+            return shared_from_this();
+        }
 
-        void run(); // from ntwrk_basic
-        void onStart(); // from ntwrk_basic
-        void onStop();  // from ntwrk_basic
+        void set_ssl_options(std::string cert_path, std::string key_path, std::string dh_path);
+
+        std::pair<bool, std::shared_ptr<tcpcnx>> fetch_cnx(int id);
+
+        jomt::server_info info();
+        void run();
+        void onStart();
+        void onStop();
         void onStop(const boost::system::error_code &ec);
 
-        void cnx_closed(int id, const boost::system::error_code &ec);
-
+        void cnx_closed(jomt::connection_info cnxi, const boost::system::error_code &ec);
         void write(int id, std::string_view data, bool close_it = false);
-        void write(std::shared_ptr<tcpcnx>, std::string_view data, bool close_it = false);
-
-        virtual void on_server_start() = 0;
-        virtual void on_server_stop(const boost::system::error_code &ec) = 0;
-        virtual void on_new_connection(int id, std::shared_ptr<tcpcnx> cnx) = 0;
-        virtual void on_connection_end(int id, const boost::system::error_code &ec) = 0;
-        virtual void on_data_rx(int id, std::string_view data, std::shared_ptr<tcpcnx> cnx) = 0;
+        void on_data_rx(int id, std::string_view data, connection_info cnxi);
     };
 
 }

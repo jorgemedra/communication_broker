@@ -10,8 +10,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/bin/comserv",
             "args": [
-                "6661",
-                "6662"
+                "6662",
+                "6661"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

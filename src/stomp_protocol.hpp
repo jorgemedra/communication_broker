@@ -33,7 +33,7 @@ namespace jomt::stomp
         switch(ec)
         {
             case stomp_errors::OK:
-                return "OK.";
+                return "OK";
             case stomp_errors::INVALID_FORMAT_COMMAND:
                 return "The COMMAND doesn't meet the requeriments, check its format.";
             case stomp_errors::UNKOWN_COMMAND:

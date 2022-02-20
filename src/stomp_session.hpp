@@ -150,8 +150,6 @@ namespace jomt::stomp{
 
         std::shared_ptr<stomp_session> fetch_session_by_id(const std::string session_id);
         
-
-
         std::shared_ptr<stomp_session> fetch_session_by_cnx(const int cnx_id);
         std::shared_ptr<stomp_session> fetch_session_by_destination(std::string dest);
         std::list<std::shared_ptr<stomp_session>> fetch_all_sessions();        

@@ -180,7 +180,7 @@ void stomp_sever::proccess_subscribe(std::shared_ptr<stomp_message> msg, jomt::c
         send_error_msg(cnxi, "This connection has no logged a session.", true);
         return;
     }
-
+    
     bool is_regex = dest_type.compare("1") == 0 ? true : false;
     m_subs_mng->async_init_subscription(session, dest, trans, is_regex);
 }

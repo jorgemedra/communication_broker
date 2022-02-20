@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+    <link rel="stylesheet" href="css/sample.css">
+    <script src="https://code.jquery.com/jquery-3.5.0.js"></script>
+    <script src="lib/com-broker-1-0.js"></script>
+    <script src="js/sample.js"></script>
+</head>
+
+    <body onload="iniForm()">
+
+        <div id="div-login">
+            <table id="tbllogin">
+                <tr>
+                    <td><label>URL:</label></td>
+                    <td colspan="2"><input type="text" class="input_txt" id="txtURL" value="wss://localhost:6661" /></td>
+                </tr>
+                <tr>
+                    <td><label>User:</label></td>
+                    <td>
+                        <input type="text" class="input_txt" id="txtUser" value="jorge" />
+                    </td>
+                    <td>
+                        <div id="div-prof">
+                            <label id="lb-proftitle">Profile:</label>
+                            <form>
+                                <input type="radio" id="opt_prof" name="opt_prof" value="agn"><label>AGN</label>
+                                <input type="radio" id="opt_prof" name="opt_prof" value="sagn"><label>SAGN</label>
+                                <input type="radio" id="opt_prof" name="opt_prof" value="srv"><label>SRV</label>
+                                <input type="radio" id="opt_prof" name="opt_prof" value="adm"><label>ADM</label>
+                            </form>
+                        </div>
+                </tr>
+                <tr>
+                    <td colspan="3">
+                        <input type="button" id="btnConnect" value="Open connection" onClick="OpenConnection()" />
+                        <input type="button" id="btnClose" value="Close connection" onClick="CloseConnection()" />
+                    </td>
+                </tr>
+
+            </table>
+            
+            
+        </div>
+
+        <div id="div-logged">
+            <div id="div-info">
+                <table>
+                    <tr>
+                        <td> <label>Session ID:</label> </td>
+                        <td> <h3 id="session_id"></h3> </td>
+                        <td> <label>Destionation ID:</label> </td>
+                        <td> <h3 id="destination_id"></h3> </td>
+                    </tr>
+                    <tr>
+                        <td> <label>Profile:</label> </td>
+                        <td>
+                            <h3 id="profile"></h3>
+                        </td>
+                        <td> <label>Connection ID:</label> </td>
+                        <td>
+                            <h3 id="cnx_id"></h3>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div id="div-subscribe">
+                <label>Subscribe to: </label>
+                <input type="text" class="input_txt" id="txtDestSuscribe" value="/agent/login-id" />                
+                <label>Use Regular Expression?</label>
+                <input type="checkbox" id="chkRegex" value="Use Regular Expression" onChange="OnType()" />
+                <input type="button" id="btnSuscribe" value="Suscribe To" onClick="Suscribe()" />
+                <input type="button" id="btnUnSuscribe" value="Unsuscribe To" onClick="Unsuscribe()" />
+            </div>
+
+            <div id="div-convesation">
+
+                <table id="tblTxRx">
+                    <tr>
+                        <td>
+                            <h3 id="lbID">Send to Dest ID</h3>
+                        </td>
+                        <td>
+                            <input type="text" class="input_txt" id="txtDestination" value="MyDestiny" />
+                        </td>
+                        <td>
+                            <h3>Incoming message</h3>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2">
+                            <input type="button" id="btnSend" value="Send Message" onClick="Send()" />
+                        </td>
+                        <td>
+                            <input type="button" id="btnClear" value="Clear Message" onClick="Clear()" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2">
+                            <textarea id="txtTxMessage" rows="4" cols="50">This is my sample message to send...</textarea>
+                        </td>
+                        <td>
+                            <textarea id="txtRxMessage" rows="4" cols="50"></textarea>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div id="div-logs">
+            <input type="button" id="btnClearLogs" value="Clear Logs" onClick="ClearLogs()" />
+            <textarea id="txtLogs" rows="4" cols="50">Logs...</textarea>
+        </div>
+    </body>
+</html>

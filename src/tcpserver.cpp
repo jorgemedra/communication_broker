@@ -2,48 +2,47 @@
 #include <memory>
 #include <string_view>
 #include <boost/beast.hpp>
-//#include <boost/asio/ssl.hpp>
 #include <boost/beast/ssl.hpp>
 #include <boost/asio.hpp>
 
 #include <thread>
 #include <mutex>
-#include "ws.hpp"
+#include "tcp.hpp"
 
 namespace asio = boost::asio;
 namespace ssl = boost::asio::ssl;
 namespace ip = boost::asio::ip;
 namespace beast = boost::beast;
-namespace websocket = beast::websocket; // from <boost/beast/websocket.hpp>
+//namespace websocket = beast::websocket; // from <boost/beast/websocket.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 
 using namespace boost::beast;
 using namespace boost::beast::websocket;
 using namespace jomt;
 
-wsserver::wsserver(std::shared_ptr<jomt::basic_server> server,
-                   int bind_port,
-                   int max_cnxs,
-                   ssl::context::method mtd) : m_mainsrv{server},
-                                               m_port{bind_port},
-                                               m_ioc{},
-                                               m_ssl_ioc(mtd),
-                                               m_acceptor(m_ioc, ip::tcp::endpoint(ip::tcp::v4(), m_port)),
-                                               m_cnxs{}, m_counter{0},
-                                            //    m_stck_ids{},
-                                               m_lockcnx{},
-                                               m_is_ssl{false}
+tcpserver::tcpserver(std::shared_ptr<jomt::basic_server> server,
+                     int bind_port,
+                     int max_cnxs,
+                     ssl::context::method mtd) : m_mainsrv{server},
+                                                 m_port{bind_port},
+                                                 m_ioc{},
+                                                 m_ssl_ioc(mtd),
+                                                 m_acceptor(m_ioc, ip::tcp::endpoint(ip::tcp::v4(), m_port)),
+                                                 m_cnxs{}, m_counter{0},
+                                                //  m_stck_ids{},
+                                                 m_lockcnx{},
+                                                 m_is_ssl{false}
 {
     // initIdQueue(max_cnxs);
 }
 
-// void wsserver::initIdQueue(int max_cnxs)
+// void tcpserver::initIdQueue(int max_cnxs)
 // {
 //     for (int id = max_cnxs; id > 0; id--)
 //         m_stck_ids.push(id);
 // }
 
-void wsserver::set_ssl_options(std::string cert_path, std::string key_path, std::string dh_path) 
+void tcpserver::set_ssl_options(std::string cert_path, std::string key_path, std::string dh_path)
 {
     //std::cout << "set_ssl_options\n";
     //std::cout << "set_ssl_options::set_options\n";
@@ -73,7 +72,7 @@ void wsserver::set_ssl_options(std::string cert_path, std::string key_path, std:
     m_is_ssl= true;
 }
 
-std::pair<bool, std::shared_ptr<wscnx>> wsserver::fetch_cnx(int id)
+std::pair<bool, std::shared_ptr<tcpcnx>> tcpserver::fetch_cnx(int id)
 {
     std::unique_lock<std::mutex> lockstck(m_lockcnx);
 
@@ -83,24 +82,24 @@ std::pair<bool, std::shared_ptr<wscnx>> wsserver::fetch_cnx(int id)
     return {true,it->second};
 }
 
-jomt::server_info wsserver::info()
+jomt::server_info tcpserver::info()
 {
-    return {m_port, jomt::WEBSOCKET};
+    return {m_port, jomt::SOCKET_IP};
 }
 
-void wsserver::onStart()
+void tcpserver::onStart()
 {
     //std::cout << "[onStart] Runnig WSServer for IPV4 and on port [" << m_port << "]\n";
     m_mainsrv->on_server_start(info());
 }
 
-void wsserver::onStop()
+void tcpserver::onStop()
 {
     boost::system::error_code ec;
     onStop(ec);
 }
 
-void wsserver::onStop(const boost::system::error_code &ec)
+void tcpserver::onStop(const boost::system::error_code &ec)
 {
     m_acceptor.cancel();
     m_ioc.stop();
@@ -108,7 +107,7 @@ void wsserver::onStop(const boost::system::error_code &ec)
     m_mainsrv->on_server_stop(info(), ec);
 }
 
-void wsserver::run()
+void tcpserver::run()
 {
     //std::cout << "[run] Running...\n";
     beast::error_code ec;
@@ -135,7 +134,7 @@ void wsserver::run()
 }
 
 //This acceptor uses the first thread.
-void wsserver::wait_for_connections()
+void tcpserver::wait_for_connections()
 {
     //std::cout << "[wait_for_connections] Waitting for a new connection.\n";
     m_acceptor.async_accept(m_ioc,
@@ -148,7 +147,7 @@ void wsserver::wait_for_connections()
                                 }
                                 else
                                 {
-                                    auto [id, cnxi] = self->regiter_wscnx(std::move(socket));
+                                    auto [id, cnxi] = self->regiter_tcpcnx(std::move(socket));
                                     self->m_mainsrv->on_new_connection(self->info(), cnxi);
                                 }
 
@@ -156,38 +155,39 @@ void wsserver::wait_for_connections()
                             });
 }
 
-void wsserver::cnx_closed(jomt::connection_info cnxi, const boost::system::error_code &ec)
+void tcpserver::cnx_closed(jomt::connection_info cnxi, const boost::system::error_code &ec)
 {
-    //std::cout << "[cnx_closed] The connection [" << id << "].\n";
-    if (unregiter_wscnx(cnxi.id))
+    std::cout << "[tcpserver::cnx_closed] The connection [" << cnxi.id << "].\n";
+    if (unregiter_tcpcnx(cnxi.id))
     {
         m_mainsrv->on_connection_end(info(), cnxi, ec);
     }
-    //std::cout << "[cnx_closed] END.\n";
+    // std::cout << "[tcpserver::cnx_closed] END.\n";
 }
 
-std::pair<int, connection_info> wsserver::regiter_wscnx(ip::tcp::socket &&socket)
+std::pair<int, connection_info> tcpserver::regiter_tcpcnx(ip::tcp::socket &&socket)
 {
     std::unique_lock<std::mutex> lockstck(m_lockcnx);
 
     // int id = m_stck_ids.top();
     // m_stck_ids.pop();
 
-    std::shared_ptr<wscnx> cnx = m_is_ssl ? std::make_shared<wscnx>(std::move(socket), std::ref(m_ssl_ioc), shared_from_this()) : std::make_shared<wscnx>(std::move(socket), shared_from_this());
+    std::shared_ptr<tcpcnx> cnx = m_is_ssl ? std::make_shared<tcpcnx>(std::move(socket), std::ref(m_ssl_ioc), shared_from_this()) : 
+                                             std::make_shared<tcpcnx>(std::move(socket), shared_from_this());
 
     int id = cnx->cnx_info().id;
-    std::pair<int, std::shared_ptr<wscnx>> data = std::pair<int, std::shared_ptr<wscnx>>(id, cnx);
+    std::pair<int, std::shared_ptr<tcpcnx>> data = std::pair<int, std::shared_ptr<tcpcnx>>(id, cnx);
     m_cnxs.insert(data);
     return {id, cnx->cnx_info()};
 }
 
-bool wsserver::unregiter_wscnx(int id)
+bool tcpserver::unregiter_tcpcnx(int id)
 {
     std::unique_lock<std::mutex> lockstck(m_lockcnx);
 
     auto it = m_cnxs.find(id);
     if (it != m_cnxs.end())
-    {
+    {   
         m_cnxs.erase(it);
         // m_stck_ids.push(id);
         return true;
@@ -195,16 +195,17 @@ bool wsserver::unregiter_wscnx(int id)
     return false;
 }
 
-void wsserver::write(int id, std::string_view data, bool close_it)
+void tcpserver::write(int id, std::string_view data, bool close_it)
 {
     auto it = m_cnxs.find(id);
     if(it != m_cnxs.end())
         it->second->write(data, close_it);
     else
-        std::cout << "[wsserver::write] - [WARN] There is no client with ID [" << id << "]\n";
+        std::cout << "[tcpserver::write] - [WARN] There is no client with ID [" << id << "]\n";
 }
 
-void wsserver::on_data_rx(int id, std::string_view data, connection_info cnxi)
+void tcpserver::on_data_rx(int id, std::string_view data, connection_info cnxi)
 {
     m_mainsrv->on_data_rx(info(), data, cnxi);
 }
+

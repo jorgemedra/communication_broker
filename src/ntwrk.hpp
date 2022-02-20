@@ -73,9 +73,9 @@ namespace jomt
     {
         virtual void on_server_start(server_info srvi) = 0;
         virtual void on_server_stop(server_info srvi, const boost::system::error_code &ec) = 0;
-        virtual void on_new_connection(server_info srvi, int id, connection_info cnxi) = 0;
-        virtual void on_connection_end(server_info srvi, int id, const boost::system::error_code &ec) = 0;
-        virtual void on_data_rx(server_info srvi, int id, std::string_view data, connection_info cnxi) = 0;
+        virtual void on_new_connection(server_info srvi, connection_info cnxi) = 0;
+        virtual void on_connection_end(server_info srvi, connection_info cnxi, const boost::system::error_code &ec) = 0;
+        virtual void on_data_rx(server_info srvi, std::string_view data, connection_info cnxi) = 0;
     };
 
     class ntwrk_basic

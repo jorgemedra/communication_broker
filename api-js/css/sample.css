@@ -1,23 +1,89 @@
 body{
-    background: darkslategrey;
+    background: darkblue;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+table
+{
+    border-bottom: 4px;
+    border-left: 4px;
+    border-right: 4px;
+}
+
+table tr td
+{
+  padding-top: 2px;
+  padding-bottom: 2px;
 }
 
 label{
     color: white;
+    font-size: 11px;
+}
+
+h3{
+    color: limegreen;
+    font-size: 11px;
+    font-weight: bold;
 }
 
 .input_txt
 {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 11;
+    font-family: 'Courier New', Courier, monospace;    
+    font-size: 11px;
     background: black;
     color: lightyellow;
+    width: 95%;
 }
 
 textarea
 {
     font-family: 'Courier New', Courier, monospace;
-    font-size: 11;
+    font-size: 11px;
     background: black;
     color: lightyellow;
+}
+
+#div-prof
+{
+    display: grid;
+    column-gap: 3px;
+    grid-template-columns: auto auto auto auto auto auto auto auto;
+    grid-template-rows: auto auto;
+}
+
+#lb-proftitle
+{
+    grid-column-start: 1;
+    grid-column-end: 9;
+    text-align: center;
+}
+
+#div-subscribe
+{
+    width: 400px;
+    display: grid;
+    column-gap: 3px;
+    grid-template-columns: auto auto;
+    grid-template-rows: auto auto;
+}
+
+#div-convesation
+{
+    width: 800px;
+    padding-top: 5px;
+}
+#tblTxRx
+{
+    border: 1px lightblue solid;
+}
+
+#div-logs
+{
+    width: 800px;
+    display: grid;
+    column-gap: 3px;
+    grid-template-columns: auto;
+    grid-template-rows: auto auto;
+    align-items: left;
 }

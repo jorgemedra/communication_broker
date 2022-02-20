@@ -50,30 +50,17 @@ namespace jomt
         void accept_tcp();
         void accept_ssl();
 
-        void read_tcp();
-        void read_ssl();
+        void read();
 
-        void write_tcp(std::string_view data, bool close_on_write);
-        void write_ssl(std::string_view data, bool close_on_write);
+        // void write_tcp(std::string_view data, bool close_on_write);
+        // void write_ssl(std::string_view data, bool close_on_write);
 
     public:
-        wscnx(short id, boost::asio::ip::tcp::socket &&sck,
-               std::shared_ptr<wsserver> server) :  m_server{server}, 
-                                                    m_ws(new t_ws_tcp(std::move(sck)))
-        {
-            is_ssl = false;
-            connection::type(jomt::socket_type::WEBSOCKET);
-            connection::id(id);
-        }
+        wscnx(boost::asio::ip::tcp::socket &&sck,
+               std::shared_ptr<wsserver> server);
 
-        wscnx(short id, boost::asio::ip::tcp::socket &&sck, boost::asio::ssl::context &cnx,
-              std::shared_ptr<wsserver> server) : m_server{server},
-                                                  m_wss(new t_ws_ssl(std::move(sck), cnx)) 
-        {
-            is_ssl = true;
-            connection::type(jomt::socket_type::WEBSOCKET);
-            connection::id(id);
-        }
+        wscnx(boost::asio::ip::tcp::socket &&sck, boost::asio::ssl::context &cnx,
+              std::shared_ptr<wsserver> server);
 
         
         ~wscnx();
@@ -85,7 +72,7 @@ namespace jomt
     class wsserver : public std::enable_shared_from_this<wsserver>, public ntwrk_basic
     {
         //TODO: Change it by a MACRO on Compiler time
-        static const int MAX_CONNECTIONS = 1024;
+        static const int MAX_CONNECTIONS_WS = 1024;
 
         std::shared_ptr<jomt::basic_server> m_mainsrv;
         int m_port;
@@ -94,23 +81,24 @@ namespace jomt
         boost::asio::ip::tcp::acceptor m_acceptor;
         std::unordered_map<int, std::shared_ptr<wscnx>> m_cnxs;
         std::atomic<int> m_counter;
-        std::stack<int> m_stck_ids;
+        // std::stack<int> m_stck_ids;
         std::mutex m_lockcnx;
         bool m_is_ssl;
+
         void wait_for_connections();
 
-        void initIdQueue(int max_cnxs);
+        // void initIdQueue(int max_cnxs);
         std::pair <int, connection_info> regiter_wscnx(boost::asio::ip::tcp::socket &&socket);
         bool unregiter_wscnx(int id);
 
         wsserver(std::shared_ptr<jomt::basic_server> server, int bind_port,
-                 int max_cnxs = wsserver::MAX_CONNECTIONS,
-                 boost::asio::ssl::context::method mtd = boost::asio::ssl::context::sslv23_server);
+                 int max_cnxs = wsserver::MAX_CONNECTIONS_WS,
+                 boost::asio::ssl::context::method mtd = boost::asio::ssl::context::tlsv12);
 
     public:
         static std::shared_ptr<wsserver> create(std::shared_ptr<jomt::basic_server> server, int bind_port,
-                                                int max_cnxs = wsserver::MAX_CONNECTIONS,
-                                                boost::asio::ssl::context::method mtd = boost::asio::ssl::context::sslv23_server)
+                                                int max_cnxs = wsserver::MAX_CONNECTIONS_WS,
+                                                boost::asio::ssl::context::method mtd = boost::asio::ssl::context::tlsv12)
         {
             return std::shared_ptr<wsserver>(new wsserver(server, bind_port, max_cnxs,mtd));
         }
@@ -120,7 +108,7 @@ namespace jomt
             return shared_from_this();
         }
 
-        void set_ssl_options(std::string cert_path, std::string key_path, std::string pem_path);
+        void set_ssl_options(std::string cert_path, std::string key_path, std::string dh_path);
 
         std::pair<bool, std::shared_ptr<wscnx>> fetch_cnx(int id);
 
@@ -130,10 +118,8 @@ namespace jomt
         void onStop();
         void onStop(const boost::system::error_code &ec);
 
-        void cnx_closed(int id, const boost::system::error_code &ec);
-
+        void cnx_closed(jomt::connection_info cnxi, const boost::system::error_code &ec);
         void write(int id, std::string_view data, bool close_it = false);
-
         void on_data_rx(int id, std::string_view data, connection_info cnxi);
 
         // virtual void on_server_start() = 0;
