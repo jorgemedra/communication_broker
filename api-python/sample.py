@@ -11,13 +11,19 @@ __agent_prof_key__ = "my_agent_secret_key"
 __sagent_prof_key__ = "my_super_agent_secret_key"
 __service_prof_key__ = "my_service_secret_key"
 __admin_prof_key__ = "my_admin_secret_key"
+__cert_path__ = "cert/server.crt"
+
 
 client = broker_client("Client-1", __app_key__)
 
-def connect(login_id, profile):
+def connect(login_id, profile, use_ssl=False):
     if client.is_connected():
         print("The client is already connected.")
         return
+    
+    if use_ssl:
+        client.set_ssl_options(cert_path=__cert_path__)
+    
     #Connecting and Login
     client.link_call_back_functions(on_connected=ev_connected, 
                                     on_disconnected=ev_diconnected,
@@ -36,7 +42,7 @@ def connect(login_id, profile):
     else:
         keyprof = __agent_prof_key__
     
-    client.connect( host="localhost", port=6662,
+    client.connect(host="localhost", port=6662, server_hostname="MacBook-Pro-de-Jorge.local",
                     login_id=login_id, secret_key=keyprof)
     
 
@@ -157,7 +163,7 @@ if __name__ == "__main__":
             disconnect()
             __keepRunning__ = False
         elif __keepRunning__ and commands[0] == "cnx":
-            connect(commands[1], commands[2])
+            connect(commands[1], commands[2], True)
         elif __keepRunning__ and commands[0] == "send":
             if len(commands) >= 3:
                 msg = ""

@@ -65,6 +65,7 @@ namespace jomt
         {
             m_cnx_info.address = sck.remote_endpoint().address().to_string();
             m_cnx_info.port = sck.remote_endpoint().port();
+            // std::cout << "read_metainfo: [" << m_cnx_info.address << "]:[" << m_cnx_info.port << "]\n";
         }
         
     };

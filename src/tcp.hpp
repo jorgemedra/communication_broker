@@ -39,21 +39,18 @@ namespace jomt
 
         bool b_w_header;
         size_t m_payload_size;
-
-        std::unique_ptr<t_sck> m_sck;
-        std::unique_ptr<t_sck_ssl> m_ssck;
+        t_sck m_sck;
+        t_sck_ssl m_ssck;
 
         void handshake_ssl();
 
         void read();
-
-        // void write_tcp(std::string_view data, bool close_on_write);
-        // void write_ssl(std::string_view data, bool close_on_write);
-
     public:
-        tcpcnx(t_sck &&sck, std::shared_ptr<tcpserver> server);
-
-        tcpcnx(t_sck &&sck, boost::asio::ssl::context &cnx, std::shared_ptr<tcpserver> server);
+        tcpcnx(t_sck &&sck,
+               boost::asio::io_context &cnx,
+               boost::asio::ssl::context &sslcnx,
+               std::shared_ptr<tcpserver> server,
+               bool use_ssl);
         ~tcpcnx();
 
         void run();
@@ -73,7 +70,6 @@ namespace jomt
         boost::asio::ip::tcp::acceptor m_acceptor;
         std::unordered_map<int, std::shared_ptr<tcpcnx>> m_cnxs;
         std::atomic<int> m_counter;
-        // std::stack<int> m_stck_ids;
         std::mutex m_lockcnx;        
         bool m_is_ssl;
 
@@ -85,12 +81,12 @@ namespace jomt
 
         tcpserver(std::shared_ptr<jomt::basic_server> server, int bind_port,
                   int max_cnxs = tcpserver::MAX_CONNECTIONS_TCP,
-                  boost::asio::ssl::context::method mtd= boost::asio::ssl::context::tlsv12);
+                  boost::asio::ssl::context::method mtd = boost::asio::ssl::context::tlsv12_server);
 
     public:
         static std::shared_ptr<tcpserver> create(std::shared_ptr<jomt::basic_server> server, int bind_port,
                                                  int max_cnxs = tcpserver::MAX_CONNECTIONS_TCP,
-                                                 boost::asio::ssl::context::method mtd = boost::asio::ssl::context::tlsv12)
+                                                 boost::asio::ssl::context::method mtd = boost::asio::ssl::context::tlsv12_server)
         {
             return std::shared_ptr<tcpserver>(new tcpserver(server, bind_port, max_cnxs, mtd));
         }

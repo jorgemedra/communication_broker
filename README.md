@@ -29,7 +29,7 @@
 - [x] ACK FOR SEND
 - [x] Finish JS API, Left proccess the remain messages.
 - [x] Implements the TCP Server.
-- [ ] BUG: SSL on TCP Server doesn't work.
+- [x] BUG: SSL on TCP Server doesn't work.
 - [ ] Run as a Daemon or Console mode.
 - [ ] Add logs with Boost Log api... or mine (as more control as better).
 
@@ -147,34 +147,41 @@ My Dummy data to create a cert are:
 + Common Name: MacBook-Pro-de-Jorge.local
 + Email Address: anyaddress@mail.com
 
-openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365
-openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365 -subj '/CN=localhost'
 
+openssl req -new -x509 -days 365 -nodes -out mycert.pem -keyout mycert.pem
+
+//openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365
+//openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365 -subj '/CN=localhost'
+
+
+
+
+Creatring the Private Key
 ``` cmd
-openssl req -x509 -newkey rsa:4096 -keyout dummy_key.pem -out dummy.pem -sha256 -days 365
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out dummy.pem -sha256 -days 365
 openssl x509 -outform der -in dummy.pem -out dummy.crt
 ```
 
 
 1. Generate a private key
 ```cmd
-openssl genrsa -des3 -out dummy.key 2048
+openssl genrsa -des3 -out key.pem 2048
 ```
 
 2. Generate Certificate signing request
 ```cmd
-openssl req -new -key dummy.key -out dummy.csr
+openssl req -new -key key.pem -out csreq.pem
 ```
 
 3. Sign certificate with private key
 ```cmd
-openssl x509 -req -days 3650 -in dummy.csr -signkey dummy.key -out dummy.crt
-openssl x509 -signkey dummy.key -in dummy.csr -req -days 365 -out dummy.crt
+openssl x509 -req -days 3650 -in csreq.pem -signkey key.pem -out crt.pem
+openssl x509 -signkey key.pem -in csreq.pem -req -days 365 -out crt.pem
 ```
 
 4. Generate dhparam file
 ```cmd
-openssl dhparam -out dhdummy.pem 1024
+openssl dhparam -out dhkey.pem 1024
 ```
 
 ```cpp
@@ -183,9 +190,19 @@ m_ssl_ipp.use_private_key_file("dummy.key", boost::asio::ssl::context::pem);
 m_ssl_ioc.use_tmp_dh_file("dhdummy.pem");
 ```
 
+removing the Pass phrase form key file
+```cmd
+openssl rsa -in cert.pem -out clear_cert.pem
+```
 
 # Sample 
 
 ```cmd
 python -m SimpleHTTPServer 7771
 ```
+
+
+
+
+
+openssl req  -nodes -new -x509  -keyout key.pem -out cert.pem

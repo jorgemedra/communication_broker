@@ -27,8 +27,12 @@ int main(int argc, char* argv[])
     sckSrv.start();
     */
 
-    std::string crt{"./cert/cert.pem"};
-    std::string key{"./cert/key.pem"};
+    // std::string crt{"./cert/cert.pem"};
+    // std::string key{"./cert/key.pem"};
+    // std::string dh{"./cert/dhkey.pem"};
+
+    std::string crt{"./cert/server.crt"};
+    std::string key{"./cert/server.key"};
     std::string dh{"./cert/dhkey.pem"};
 
     //std::shared_ptr<jomt::stomp::stomp_sever> stompsrv(new jomt::stomp::stomp_sever(scktPort));
@@ -40,7 +44,7 @@ int main(int argc, char* argv[])
 
     // This method activate the SSL Mode on the stomp server.
     stompsrv->set_ssl_options_on_ws(crt, key, dh);
-    //stompsrv->set_ssl_options_on_tcp(crt, key, dh);
+    stompsrv->set_ssl_options_on_tcp(crt, key, dh);
     stompsrv->start();
 
     std::cout

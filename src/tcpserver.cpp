@@ -133,10 +133,11 @@ void tcpserver::run()
     //std::cout << "[run] Running end\n";
 }
 
-//This acceptor uses the first thread.
+// This acceptor uses the first thread.
 void tcpserver::wait_for_connections()
 {
-    //std::cout << "[wait_for_connections] Waitting for a new connection.\n";
+    std::cout << "[wait_for_connections] Waitting for a new connection.\n";
+
     m_acceptor.async_accept(m_ioc,
                             [self{get()}](const boost::system::error_code &ec, ip::tcp::socket socket)
                             {
@@ -165,15 +166,31 @@ void tcpserver::cnx_closed(jomt::connection_info cnxi, const boost::system::erro
     // std::cout << "[tcpserver::cnx_closed] END.\n";
 }
 
+// std::pair<int, connection_info> tcpserver::regiter_tcpcnx(ip::tcp::socket &&socket)
+// {
+//     std::unique_lock<std::mutex> lockstck(m_lockcnx);
+
+//     // int id = m_stck_ids.top();
+//     // m_stck_ids.pop();
+
+//     std::shared_ptr<tcpcnx> cnx = m_is_ssl ? std::make_shared<tcpcnx>(std::move(socket), std::ref(m_ssl_ioc), shared_from_this()) : 
+//                                              std::make_shared<tcpcnx>(std::move(socket), shared_from_this());
+
+//     int id = cnx->cnx_info().id;
+//     std::pair<int, std::shared_ptr<tcpcnx>> data = std::pair<int, std::shared_ptr<tcpcnx>>(id, cnx);
+//     m_cnxs.insert(data);
+//     return {id, cnx->cnx_info()};
+// }
+
 std::pair<int, connection_info> tcpserver::regiter_tcpcnx(ip::tcp::socket &&socket)
 {
     std::unique_lock<std::mutex> lockstck(m_lockcnx);
 
-    // int id = m_stck_ids.top();
-    // m_stck_ids.pop();
-
-    std::shared_ptr<tcpcnx> cnx = m_is_ssl ? std::make_shared<tcpcnx>(std::move(socket), std::ref(m_ssl_ioc), shared_from_this()) : 
-                                             std::make_shared<tcpcnx>(std::move(socket), shared_from_this());
+    std::shared_ptr<tcpcnx> cnx = std::make_shared<tcpcnx>(std::move(socket),
+                                                           std::ref(m_ioc),
+                                                           std::ref(m_ssl_ioc),
+                                                           shared_from_this(),
+                                                           m_is_ssl);
 
     int id = cnx->cnx_info().id;
     std::pair<int, std::shared_ptr<tcpcnx>> data = std::pair<int, std::shared_ptr<tcpcnx>>(id, cnx);

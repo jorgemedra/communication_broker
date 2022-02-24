@@ -5,8 +5,12 @@
 #import asyncio
 #from select import select
 #from warnings import catch_warnings
+from pprint import pprint
 import socket
+import ssl
+from telnetlib import TLS
 import threading
+from turtle import Turtle
 
 from matplotlib.pyplot import disconnect
 
@@ -138,6 +142,7 @@ class broker_client:
         self.destination_id = ""
         self.secret_key = ""
         self.is_ssl = False
+        self.cer_file = ""
         self.host = "localhost"
         self.port = 0
         self.connected = False
@@ -171,11 +176,11 @@ class broker_client:
         self.on_ack = on_ack
     
     def set_app_key(self, app_key):
-        self.is_ssl = True
         self.app_key = app_key
         
-    def set_ssl_options(self):
+    def set_ssl_options(self, cert_path):
         self.is_ssl = True
+        self.cer_file = cert_path
     
     def handle_error(self):
         print("handle_error")
@@ -190,7 +195,7 @@ class broker_client:
     def is_connected(self):
         return self.connected
     
-    def connect(self, host, port, login_id, secret_key):
+    def connect(self, server_hostname, host, port, login_id, secret_key):
         if self.connected == True:
             return
 
@@ -201,9 +206,36 @@ class broker_client:
         self.secret_key = secret_key
         
         self._debug("Connection to {0}:{1}".format(self.host, self.port))
-        self.sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if self.is_ssl:
+            # self.context = context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            # self.context.load_verify_locations(self.cer_file)
+            
+            sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+            # self.sck = ssl.wrap_socket(sck,
+            #                            ca_certs= self.cer_file,
+            #                            ssl_version=ssl.PROTOCOL_TLSv1_2,
+            #                            do_handshake_on_connect=True,
+            #                            server_side=False,
+            #                            cert_reqs= ssl.CERT_REQUIRED)
+            
+            self.context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+            self.sck = self.context.wrap_socket(sck, do_handshake_on_connect=True, server_side=False)
+            
+            # self.sck = self.context.wrap_socket(sck, server_hostname=server_hostname)
+            
+            
+        else:
+            self.sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            
+            
         self.sck.connect((self.host, self.port))
         self.connected = True
+        
+        if self.is_ssl:
+            print("Socket Version: {0}".format(self.sck.version()))            
+            print("Cypher: {0}".format(self.sck.cipher()))
+            cert = self.sck.getpeercert()
+            pprint(cert)
         
         self.thr_rx = threading.Thread(target=self.wait_for_data)
         self.thr_rx.start()
