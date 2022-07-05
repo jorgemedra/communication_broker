@@ -255,7 +255,7 @@ class broker_client:
         self._write_()
          
     def disconnect(self):
-        if self.connected == False or self.logged == False:
+        if self.connected == False:
             return
         
         headers = {
@@ -295,7 +295,7 @@ class broker_client:
             command=stomp_protocol.CMD_UNSUBSCRIBE, headers=headers, payload="")
         self._write_()
     
-    def send_to(self, destination, message, content_type="text/plain"):
+    def send(self, destination, message, content_type="text/plain"):
         #print("Send To")
         headers = {
             stomp_protocol.HDR_TRANSACTION :self._trans_id(),
@@ -405,9 +405,11 @@ Uknown Message from Comm Server
         self.logged = True
         self.session_id = msg.headers[stomp_protocol.HDR_SESSION_ID]
         self.login_id = msg.headers[stomp_protocol.HDR_LOGIN]
+        profile = msg.headers[stomp_protocol.HDR_PROF_DESC]
+        cnx_id = msg.headers[stomp_protocol.HDR_CNX_ID]
         self.destination_id = msg.headers[stomp_protocol.HDR_DEST]
         
-        self.on_connected(self.session_id, self.login_id, self.destination_id)
+        self.on_connected(self.session_id, self.destination_id, profile, cnx_id)
     
     def _process_receipt(self, msg: stomp_message):
         

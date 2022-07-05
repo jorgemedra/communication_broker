@@ -1,0 +1,67 @@
+participant API
+participant CommBroker
+
+
+group #lightgreen Connect
+API->API: Prev. Inf(Set SecretAppKey, Link Events)
+API-->CommBroker: connect(host, port, **login_id**, **secret_id**)
+
+
+alt SUCCESS
+API<#blue--CommBroker:onConnected(session_id, destination_id, profile, cnx_id)
+else FAILED
+API<#red--CommBroker: OnError(error)
+end 
+end
+
+group #lightgray Send
+
+API-->CommBroker: send(destination, message, content_type="text/plain")
+
+
+alt SUCCESS
+API<#blue--CommBroker:onACK(error_desc)
+else 
+API<#red--CommBroker: OnError(error)
+end
+
+end 
+
+
+group #yellow Subscribe
+
+API-->CommBroker: subscribe(destination,is_regex)
+
+alt SUCCESS
+API<#blue--CommBroker:onACK(error_desc)
+else 
+API<#red--CommBroker: OnError(error)
+end
+
+end
+
+
+group #yellow Unsubscribe
+
+API-->CommBroker: unsubscribe()
+
+alt SUCCESS
+API<#blue--CommBroker:onACK(error_desc)
+else 
+API<#red--CommBroker: OnError(error)
+end
+
+end
+
+group #lightgray OnMessage
+
+note over API, CommBroker:This event is triggered  by a Direct Message\nor a Subscritpion Message
+
+API<#blue--CommBroker:onMessage(origin, destination, content_type, payload)
+end
+
+group #lightblue Disconnect
+API-->CommBroker: disconnect()
+
+API<#blue--CommBroker:onDisconnected(session_id) 
+end

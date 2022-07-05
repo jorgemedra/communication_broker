@@ -1,208 +1,140 @@
 
 # C++ Communication Broker
 
-# TODO List
+## Intro 
+Figure out that there is a system that works as a BackEnd and it needs to provide service to several Clients, which are running into a Web Browser besides, It's necessary to establish a communication between the service and the clients that need to be bidirectional and in Real-Time. So, this project pretends to provide a solution to this escenary.
 
-- [x] Connect Diagram.
-- [x] Disconnect Diagram.
-- [x] Subscribe Diagram.
-- [x] Unsubscribe Diagram.
-- [x] Send Diagram.
-- [x] BUG: It may be a problem on Subscriptions and Unsubscriptions, it necessary to check the whole essenary to add and remove the subscriptons/subscrbes form ALL the sessions linked to an LoginId/Agent.
-- [x] BUG: Subscription has no efect on Client on Service Profile.
-- [x] BUG: Unsubscribe Exception at disconnect: "Assertion failed: (id_ != T::id), function try_lock, file /usr/local/include/boost/beast/websocket/detail/soft_mutex.hpp, line 89"
-- [x] BUG: test with an empty login-id.
-- [x] Upate Close connection, on Disconnect, to close connection.
-- [x] BUG: Remove end lines of body
-- [x] Implement a global trim function 
-- [x] Add session information on Error Message
-- [ ] On Connect, implement KeepAlive to all connections on API.
-- [ ] Add a thread to check all the connections which have been reached the time out.
-- [x] get the destination id to set into the STOMP Client API.
-- [x] Check error Message.
-- [x] Desgine the scheme of Publisher Suscriber and the ids to be used with regex on destiny.
-- [x] Subscribe
-- [x] UnSubscribe
-- [x] Disconnect / Receipt
-- [x] Message
-- [x] Send / ACK
-- [x] ACK FOR SEND
-- [x] Finish JS API, Left proccess the remain messages.
-- [x] Implements the TCP Server.
-- [x] BUG: SSL on TCP Server doesn't work.
-- [ ] Run as a Daemon or Console mode.
-- [ ] Add logs with Boost Log api... or mine (as more control as better).
+## Overview
+The **Communication Broker** is a service to communicate several third applications amont them, like a MQ service but with its specific features, and it's not hanlded persistence of message.
+
+The main idea is leverage some Web applications to communicate to send/receive messaga to a backend servive, through a open connection. 
+
+The **Communication Broker** can receive connections from two diferents interfaces:
++ Websocket Protocol
++ TCP/IP Protocol
+
+Both of then can be set to work with *SSL*.
+
+At this moment, the are developed two apis to integrate with the Communication Broker:
+
+| API | Platform | Protocol |
+|--|--|--|
+| com_broker.py | Python 3 | TCP/IP |
+| com-broker-1-0.js | JS | Wenbsocket |
+
+![](imgs/comm-broker.png)
+
+Also, the **Communication Broker** allows to other clients to receive a copy of message that was sended to another client, through a subsritption. Somethis like a MQ, like Apache MQ does it, but with its own rules.
+
+![](imgs/comm-broker-2.png)
+
+## Profiles
+
+One of the features of the **Communication Broker** is that it works with four profiles, from which has its own characteristics:
+
+| Profile | Characteristics |
+|--|--|
+| *AGENT* | The lowest profile. It only can send and receive messages. |
+| *SUPER AGENT* | It can send and receive messages and subscribe to to clients that have a profile of *AGENT*. |
+| SERVICE | It can send and receive messages and subscribe to to clients that have a profile of *AGENT* or *SUPER AGENT*. |
+| ADMIN | It can send and receive messages but not subcribes. This profile is reserve to work directly with **Communication Broker** and control it or to have a Monitor Console.   |
+
+> **Note: There is no an implementation of the ADMIN profile yet, it will come in previous versions.**
+
+To perform a Login, it's necessary to know two secret keys:
+| Secret Key | Description |
+|--|--|
+| Application | The secret key required to connecto to the  **Communication Broker**. |
+| Profile | Once the api is connected, it required to know which profile is using. This secret key determines the profile. **There must be 4 *Profile Keys* available to be used by clients.** |
 
 
-# Overview
+```python
+#1. Creating
+__app_key__ = "my_app_secret_key"
+__agent_prof_key__ = "my_agent_secret_key"
+__sagent_prof_key__ = "my_super_agent_secret_key"
+__service_prof_key__ = "my_service_secret_key"
+__admin_prof_key__ = "my_admin_secret_key"
+__cert_path__ = "cert/server.crt"
 
-This sample shows how to work with the libs of JSON and LOGS of BOOST. The sample covers the basic apects of Boost Log Lib and how to read a JSON file and, more important, how to compile and link the sample with these libs.
+#Setting the Application Secret Key
+client = broker_client("Client-1", __app_key__)
 
-> **Important** Consider that the file boostlog.h contains all the macros to simplify the use of logs methdos on trivial mode:
- ```cpp
-#define LT_TRACE    BOOST_LOG_TRIVIAL(trace)
-#define LT_DEBUG    BOOST_LOG_TRIVIAL(debug)
-#define LT_INFO     BOOST_LOG_TRIVIAL(info)
-#define LT_WARN     BOOST_LOG_TRIVIAL(warning)
-#define LT_ERROR    BOOST_LOG_TRIVIAL(error)
-#define LT_FATAL    BOOST_LOG_TRIVIAL(fatal)
+def connect(login_id, profile, use_ssl=False):
+    if client.is_connected():
+        print("The client is already connected.")
+        return
+    #...
+
+    #Selecting the Profile Secret Key
+    keyprof = ""
+    if profile == "agn":
+        keyprof = __agent_prof_key__
+    elif profile == "sagn":
+        keyprof = __sagent_prof_key__
+    elif profile == "srv":
+        keyprof = __service_prof_key__
+    elif profile == "adm":
+        keyprof = __admin_prof_key__
+    else:
+        keyprof = __agent_prof_key__
+    
+    client.connect(host="localhost", port=6662, server_hostname="MacBook-Pro-de-Jorge.local",
+                    login_id=login_id, secret_key=keyprof)
 ```
 
-## Requierements
+## Details
 
-    1. C++17 Standar.
-    2. Boost V1.77. All libraries are instaled into the `/user/local/lib` and headers in `/user/local/include`.
-    3. Visual Studio Code 1.55 or above.
-    4. For Linux: g++ (GCC) 11.1.0
-    5. For OSX (11.5.2): Apple clang version 11.0.0 (clang-1100.0.33.17)
+**Communication Broker** implements a protocol based on **STOMP V1.2**, *but it's not a full adaptation of this protocol, so if you want to connect to the **Communication Broker** using a Third Part API of STOMP, you will get problems*. The description of the protocol can be accessed through this [link](https://github.com/jorgemedra/communication_broker/wiki).
 
-## Build
 
-> Due to some problems at running time, in my case *"Segmentation Fault: 11"* at reading the files, its important to appoint that the library must be compiles with only Headers, avoiding linkig the *.so/.a* lib, on OSX environments. 
+# Working with *Communication Broker*
 
-```cpp
-json::value parseJson(std::istream &is, json::error_code &ec)
-{
-    ...
+To work with the *Communication Broker*, you must  
 
-    json::value vval;
+## Connect/Login
 
-    try{
-        vval = p.release();
-    }
-    catch(const std::exception &e)
-    {
-        LT_FATAL << "Error in parsing JSON file: " << e.what();
-    }
-    LT_TRACE << "Parsing JSON ended.";
+**Javascript**:
 
-    return vval;    // At this point the Parser's Destructor raises an exception.
-}
+```js
+connect(login_id, secret_key)
 ```
 
-1. **For JSON**, it needs to add at the beging of the *main.cpp** file the include `#include <boost/json/src.hpp>`, and remove from link step the library **boost_json**.
-2.  **For Logs**, it needs to add the Macro `-DBOOST_LOG_DYN_LINK` on **link step**, to link the library as a dynamic liberary.
-3.  Add the next libraries to link step: `-pthread -lboost_log -lboost_thread -lboost_log_setup -lstdc++`
+**Python**:
 
-## Make
-
-To get help to use the Makefile:
-```shell
-$make help
-.............................................
-Build: make
-Build with debug info: make DBGFLG=-g
-Clean compiled files: make clean
+```python
+connect(host, port, server_hostname, login_id, secret_key)
 ```
 
-To compile and build all the project:
-```shell
-$make
-```
-
-To compile and activate debug info:
-
-```shell
-$make DBGFLG=-g
-```
-
-To clean all the compiled files:
-
-```shell
-$make clean
-```
-
-## Testing
-
-To run the sample change path to `{$workspace}/bin` and execute:
-
-``` cmd
-./sample <path to boost_jsonlogs proyect>/logs/sample_%N.log
-```
-
-## References
-
-1. Getting starter [here](https://www.boost.org/doc/libs/1_77_0/more/getting_started/unix-variants.html).
-2. JSON Lib with Header-Only [here](https://www.boost.org/doc/libs/1_75_0/libs/json/doc/html/json/overview.html#json.overview.requirements).
-3. LOG Lib as Dynamic lib [here](https://www.boost.org/doc/libs/1_77_0/libs/log/doc/html/index.html).
+![](imgs/login_base.png)
 
 
-## Create a Certificate
+### Link Events
 
-> From: https://stackoverflow.com/questions/6452756/exception-running-boost-asio-ssl-example
+This methos is required to set the methos that will work as call back events
 
+## Disconnect
 
-My Dummy data to create a cert are:
+>WRITE SOMETHING
 
-+ Key File: dummy.key
-+ Cert File: dummy.csr
-+ Self Signed Cert File: dummy.crt
-+ PEM File: dhdummy.pem
-+ PEM Pass Phrase: dummypem
-+ Country: MX
-+ State (Full Name): Mexico
-+ Locality Name: CDMX
-+ Organization Name: JOMT
-+ Organization Unit Name: JOMT
-+ Common Name: MacBook-Pro-de-Jorge.local
-+ Email Address: anyaddress@mail.com
+![](imgs/disconnect_base.png)
 
 
-openssl req -new -x509 -days 365 -nodes -out mycert.pem -keyout mycert.pem
+## Subscribe
 
-//openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365
-//openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365 -subj '/CN=localhost'
+>WRITE SOMETHING
 
-
-
-
-Creatring the Private Key
-``` cmd
-openssl req -x509 -newkey rsa:4096 -keyout key.pem -out dummy.pem -sha256 -days 365
-openssl x509 -outform der -in dummy.pem -out dummy.crt
-```
+![](imgs/subscribe_base.png)
 
 
-1. Generate a private key
-```cmd
-openssl genrsa -des3 -out key.pem 2048
-```
+## Unsubscribe
 
-2. Generate Certificate signing request
-```cmd
-openssl req -new -key key.pem -out csreq.pem
-```
+>WRITE SOMETHING
 
-3. Sign certificate with private key
-```cmd
-openssl x509 -req -days 3650 -in csreq.pem -signkey key.pem -out crt.pem
-openssl x509 -signkey key.pem -in csreq.pem -req -days 365 -out crt.pem
-```
+![](imgs/unsubscribe_base.png)
 
-4. Generate dhparam file
-```cmd
-openssl dhparam -out dhkey.pem 1024
-```
+## Send & OnMessage
 
-```cpp
-m_ssl_ipp.use_certificate_chain_file("dummy.crt"); 
-m_ssl_ipp.use_private_key_file("dummy.key", boost::asio::ssl::context::pem);
-m_ssl_ioc.use_tmp_dh_file("dhdummy.pem");
-```
+>WRITE SOMETHING
 
-removing the Pass phrase form key file
-```cmd
-openssl rsa -in cert.pem -out clear_cert.pem
-```
-
-# Sample 
-
-```cmd
-python -m SimpleHTTPServer 7771
-```
-
-
-
-
-
-openssl req  -nodes -new -x509  -keyout key.pem -out cert.pem
+![](imgs/send_base.png)

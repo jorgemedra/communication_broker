@@ -51,17 +51,12 @@ namespace jomt
         void accept_ssl();
 
         void read();
-
-        // void write_tcp(std::string_view data, bool close_on_write);
-        // void write_ssl(std::string_view data, bool close_on_write);
-
     public:
         wscnx(boost::asio::ip::tcp::socket &&sck,
                std::shared_ptr<wsserver> server);
 
         wscnx(boost::asio::ip::tcp::socket &&sck, boost::asio::ssl::context &cnx,
               std::shared_ptr<wsserver> server);
-
         
         ~wscnx();
         void run();
@@ -121,12 +116,6 @@ namespace jomt
         void cnx_closed(jomt::connection_info cnxi, const boost::system::error_code &ec);
         void write(int id, std::string_view data, bool close_it = false);
         void on_data_rx(int id, std::string_view data, connection_info cnxi);
-
-        // virtual void on_server_start() = 0;
-        // virtual void on_server_stop(const boost::system::error_code &ec) = 0;
-        // virtual void on_new_connection(int id, connection_info cnxi) = 0;
-        // virtual void on_connection_end(int id, const boost::system::error_code &ec) = 0;
-        // virtual void on_data_rx(int id, std::string_view data, connection_info cnxi) = 0;
     };
 
 

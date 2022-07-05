@@ -1,0 +1,12 @@
+<diagram program="umletino" version="14.4.0-SNAPSHOT"><zoom_level>10</zoom_level><element><id>UMLClass</id><coordinates><x>150</x><y>160</y><w>160</w><h>190</h></coordinates><panel_attributes>ntwrk_basic
+-
+--
+start(): void
+stop(): void
+join(): void
+isRunning():bool
+/info():server_info/
+/run(): void/
+/onStart(): void/
+/onStop(): void/
+</panel_attributes><additional_attributes></additional_attributes></element></diagram>

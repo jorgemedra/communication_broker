@@ -26,7 +26,7 @@ def connect(login_id, profile, use_ssl=False):
     
     #Connecting and Login
     client.link_call_back_functions(on_connected=ev_connected, 
-                                    on_disconnected=ev_diconnected,
+                                    on_disconnected=ev_disconnected,
                                     on_error=ev_error,
                                     on_message=ev_message,
                                     on_ack=ev_ack)
@@ -58,7 +58,7 @@ def send(destination, message):
         return
     
     print("Sending to[{0}] the message: [{1}]".format(destination, message))
-    client.send_to(destination, message)
+    client.send(destination, message)
 
 def subscribe(destination, use_regex):
     if not client.is_connected():
@@ -82,17 +82,17 @@ Events
     --- BEGIN ---
 ************************************************
 '''
-
-def ev_connected(session_id, loginid, destination_id):
+def ev_connected(session_id, destination_id, profile, cnx_id):
     print('''
 [SAMPLE] ON CONNECTED EVENT:
     Session ID:[{0}]
-    Loginid:[{1}]
-    Destination:[{2}]
-'''.format(session_id, loginid,  destination_id))
+    Destination:[{1}]
+    Profile:[{2}]
+    Connection Id:[{3}]
+'''.format(session_id, destination_id, profile, cnx_id))
 
 
-def ev_diconnected(session_id):
+def ev_disconnected(session_id):
     print('''
 [SAMPLE] ON DISCONNECTED EVENT:
     Session ID:[{0}]

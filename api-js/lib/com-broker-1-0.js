@@ -228,7 +228,7 @@ class COM_BROKER_Client {
         else
             reason = "Unknown reason";
 
-        self.fb_onClosed(event.code, reason);
+        self.fb_onClosed(self.cur_session, event.code, reason);
     }
 
     onError(e)
@@ -287,7 +287,8 @@ class COM_BROKER_Client {
     /***********/
 
 
-    connectToServer(usr, pwd)
+    //connectToServer(usr, pwd)
+    connect(login_id, secret_key)
     {
         
         self.w_debug("Connection to " + this.url);
@@ -299,8 +300,8 @@ class COM_BROKER_Client {
         
         this.ws = new WebSocket(this.url, ['stomp']);
         
-        this._usr = usr;
-        this._pwd = pwd;
+        this._usr = login_id;
+        this._pwd = secret_key;
 
         this.ws.onopen = this.onOpen;
         this.ws.onclose = this.onClosed;
@@ -405,7 +406,7 @@ class COM_BROKER_Client {
         this.ws = null;
     }
     
-    suscribe(destination, use_regex)
+    subscribe(destination, use_regex)
     {
         const headers = [
             stomp_heders.HDR_TRANSACTION + ":" + this.NextId(),
@@ -418,7 +419,7 @@ class COM_BROKER_Client {
         this._sendraw(data);
     }
 
-    unsuscribe()
+    unsubscribe()
     {
         const headers = [
             stomp_heders.HDR_TRANSACTION + ":" + this.NextId(),
@@ -429,7 +430,7 @@ class COM_BROKER_Client {
         this._sendraw(data);
     }
 
-    sendText(destiny, body, content_type = "text/plain")
+    send(destiny, body, content_type = "text/plain")
     {
         const headers = [
             stomp_heders.HDR_TRANSACTION + ":" + this.NextId(),

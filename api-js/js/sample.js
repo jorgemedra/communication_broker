@@ -52,7 +52,7 @@ function OpenConnection()
     amq =new COM_BROKER_Client("CLT-1", url);
     amq.activeDebug();
     amq.linkEvents(OnConnected, onClosed, onError, onMessage, onACK);
-    amq.connectToServer(usr, pwd);
+    amq.connect(usr, pwd);
 }
 
 function CloseConnection()
@@ -85,7 +85,7 @@ function Suscribe()
     var temp = $("#chkRegex").prop("checked");
     var use_regextype = temp ? "1" : "0";
     var dest = $("#txtDestSuscribe").val();
-    amq.suscribe(dest, use_regextype);
+    amq.subscribe(dest, use_regextype);
 }
 
 function Send()
@@ -95,7 +95,7 @@ function Send()
     var msg = $("#txtTxMessage").val();
     var content_type = "text/plain";
 
-    amq.sendText(dest, msg, content_type);
+    amq.send(dest, msg, content_type);
 }
 
 function Clear()
@@ -117,7 +117,7 @@ function WriteLog(logmessage)
 function Unsuscribe()
 {
     WriteLog("Unscribing.");
-    amq.unsuscribe();
+    amq.unsubscribe();
 }
 
 /**********************************************************
@@ -143,9 +143,9 @@ function OnConnected(session_id, destination_id, profile, cnx_id)
     $("#txtDestSuscribe").val(destination_id);
 }
 
-function onClosed(code, reason)
+function onClosed(session_id, code, reason)
 {
-    WriteLog("Connection closed by Code(" + code + "): " + reason);
+    WriteLog("Connection closed with id [" + session_id + "] by Code(" + code + "): " + reason);
 
     $("#btnConnect").show();
     $("#btnClose").hide();
