@@ -1,0 +1,19 @@
+<!--Dashboar Page-->
+
+<div id="div-main">
+
+  <div id='div-head'>
+    <label>{{title}}</label>
+    <button (click)="onPushme()">Push Me</button>
+    <button (click)="login_session()">Login Again</button>
+    <a routerLink="/home" [routerLinkActive]="['selected-link']" class="link">Home. </a>
+    <a routerLink="/page-1" [routerLinkActive]="['selected-link']" class="link">Page 1 Component. </a>
+    <a routerLink="/page-2" [routerLinkActive]="['selected-link']" class="link">Page 2 Component. </a>
+  </div>
+
+  <div id='div-workspace'>
+    <router-outlet></router-outlet>
+  </div>
+
+</div>
+

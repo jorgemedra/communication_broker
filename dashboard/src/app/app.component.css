@@ -1,0 +1,123 @@
+
+
+#div-main
+{
+  background-color: #ffffff;
+  font-family:Arial, Helvetica, sans-serif;
+}
+
+#div-main #div-head
+{
+  border: none;
+  background: #ff5722;
+  height: 40px;
+  padding: 5px;
+}
+
+#div-main #div-workspace
+{
+  border: none;
+  background: #ffffff;
+}
+
+.spin_icon
+{
+  height: 45px;
+  width: auto;
+}
+
+.link
+{
+  color: white;
+  cursor: pointer;
+}
+
+.selected-link {
+  color: gray;
+  cursor: not-allowed;
+}
+
+/*************************************
+Generic style for a Modal Window
+**************************************/
+
+.modal {
+  width: 100%;
+  height: 100%;
+  z-index: 100;
+  overflow: auto;
+  left: 0px;
+  top: 0px;
+}
+
+.window {
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+  border: rgb(163, 163, 163);
+  border-style: solid;
+  padding: 0px;
+  position: relative;
+  top: 40%;
+  left: 40%;
+  width: 20%;
+  height: auto;
+  box-shadow: 5px 5px lightgray;
+}
+
+.wm-bar {
+  border-radius: 5px;
+  height: 5px;
+  width: 100%;
+  background: #00ff00;
+}
+
+
+.whead {
+  border-radius: 5px;
+  height: px;
+  width: 100%;
+  background: rgb(30, 1, 246);
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.whead img {
+  width: 24px;
+  height: 24px;
+}
+
+.whead label {
+  color: white;
+}
+
+.werror {
+  display: flex;
+  align-items: center;
+  background-color: white;
+  height: 35px;
+  width: 100%;
+}
+
+.lblerror {
+  background-color: white;
+  color: red;
+  width: 100%;
+  text-align: center;
+}
+
+.wcontrols {
+  height: 50px;
+  background: rgb(231, 162, 162);
+  padding: 2px 2px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+}
+
+.wcontrols button{
+  width: 33%;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: bold;
+}

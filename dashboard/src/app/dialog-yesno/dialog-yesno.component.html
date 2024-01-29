@@ -1,0 +1,11 @@
+
+
+<div class="wm-bar"></div>
+<img  [src]="Icon" />
+<label mat-dialog-title>{{data.text}}??</label>
+<div mat-dialog-actions>
+  <button id="yn_cancel" mat-button (click)="onCancel()">Cancel</button>
+  <button id="yn_ok" mat-button [mat-dialog-close]="this.result" cdkFocusInitial>Ok</button>
+</div>
+<p></p>
+<div class="wm-bar"></div>

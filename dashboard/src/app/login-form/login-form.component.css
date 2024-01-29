@@ -1,0 +1,11 @@
+
+
+#lgn_content
+{
+  background-color: red;
+  width: 100%;
+  display: grid;
+  grid-auto-rows: auto;
+  grid-template-columns: 48% 50%;
+
+}

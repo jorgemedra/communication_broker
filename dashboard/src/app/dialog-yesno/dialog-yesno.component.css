@@ -1,0 +1,22 @@
+
+/* .whead {
+  border-radius: 5px;
+  height: 12px;
+  width: 100%;
+  background: rgb(30, 1, 246);
+} */
+
+
+div
+{
+  display: flex;
+  justify-content: space-between;
+}
+
+button {
+  width: 33%;
+  height: 30%;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: bold;
+}

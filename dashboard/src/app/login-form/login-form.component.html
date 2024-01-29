@@ -1,0 +1,17 @@
+<div class="modal" *ngIf="visible">
+  <div class="window">
+    <div class="whead">
+      <img class="wicon" src="{{icon}}" />
+      <label id="wtitle">{{title}}</label>
+    </div>
+    <div id="lgn_content">
+      <label>User:</label><input type="text" value="Admin">
+      <label>Password:</label><input type="password" value="Admin">
+      <label>IP/Hostname:</label><input type="text" value="">
+      <label>Port:</label><input type="text" value="">
+    </div>
+    <div class="wcontrols">
+      <button id="lgn_login" (click)="onClickLogin()">Login</button>
+    </div>
+  </div>
+</div>

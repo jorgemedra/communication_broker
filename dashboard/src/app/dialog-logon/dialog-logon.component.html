@@ -1,0 +1,21 @@
+<form [formGroup]="loginForm" >
+  <div class="wm-bar"></div>
+  <img [src]="Icon" />
+  <label mat-dialog-title>Logon</label>
+  <div id="lgn_content">
+    <label>User:</label>  <input type="text" #in_user placeholder="Admin" formControlName="user" />
+    <label>Password:</label>  <input type="password" #in_pwd placeholder="password" formControlName="pwd"/>
+    <label>IP/Hostname:</label> <input type="text" #in_host placeholder="hostname" formControlName="host"/>
+    <label>Port:</label>  <input type="text" #in_port placeholder="9032" formControlName="port"/>
+  </div>
+  <div class="werror">
+    <label class="lblerror" mat-dialog-content #fb_error></label>
+  </div>
+  <div mat-dialog-actions>
+    <button #lgn_btn_ok mat-button type="button" (click)="onSubmit()">Login</button>
+    <img #img_spiner hidden class="spin_icon" [src]="Spiner"/>
+  </div>
+  <p></p>
+  <div class="wm-bar"></div>
+
+</form>

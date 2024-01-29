@@ -1,0 +1,22 @@
+
+#lgn_content {
+  width: 100%;
+  display: grid;
+  row-gap: 2px;
+  grid-auto-rows: auto;
+  grid-template-columns: 48% 50%;
+
+}
+
+div {
+  display: flex;
+  justify-content: space-between;
+}
+
+button {
+  width: 33%;
+  height: 30%;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: bold;
+}
