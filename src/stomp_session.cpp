@@ -74,7 +74,7 @@ std::shared_ptr<stomp_session_manager> stomp_session_manager::instance()
     static std::mutex mtx_fac_session;
     static std::lock_guard<std::mutex> lock_fact(mtx_fac_session);
     static type_ins st_unqique_sm(new stomp_session_manager());
-    return st_unique_sm;
+    return st_unqique_sm;
 }
 
 stomp_session_manager::stomp_session_manager() : m_sessions{}, m_dest_session{},

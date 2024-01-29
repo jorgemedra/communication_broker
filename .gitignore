@@ -3,3 +3,9 @@
 /[Oo]bj
 /src/[Oo]bsolet
 /test
+/dashboard/dist
+/dashboard/node_module
+/dashboard/tmp
+/[Bb]uild
+/api-python/__pycache__
+
